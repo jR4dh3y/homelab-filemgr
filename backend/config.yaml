@@ -1,0 +1,26 @@
+# Homelab File Manager Configuration
+
+# Server settings
+port: 8080
+host: "0.0.0.0"
+
+# JWT authentication secret (CHANGE THIS IN PRODUCTION!)
+jwt_secret: "change-me-in-production-use-a-long-random-string"
+
+# Upload settings
+max_upload_mb: 10240  # 10GB max upload size
+chunk_size_mb: 5      # 5MB chunk size for uploads
+
+# Mount points - directories accessible through the file manager
+mount_points:
+  - name: "media"
+    path: "/data/media"
+    read_only: false
+
+  - name: "documents"
+    path: "/home/user/documents"
+    read_only: false
+
+  - name: "backups"
+    path: "/mnt/backups"
+    read_only: true  # Read-only mount for backups
