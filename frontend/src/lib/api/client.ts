@@ -1,0 +1,273 @@
+/**
+ * HTTP client wrapper with JWT token injection and refresh handling
+ * Requirements: 7.1
+ */
+
+// API base URL - can be configured via environment variable
+const API_BASE_URL = '/api/v1';
+
+// Token storage keys
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+
+/**
+ * API Error response structure matching backend ErrorResponse
+ */
+export interface ApiError {
+	error: string;
+	code: string;
+	details?: string;
+}
+
+/**
+ * Custom error class for API errors
+ */
+export class ApiRequestError extends Error {
+	public readonly status: number;
+	public readonly code: string;
+	public readonly details?: string;
+
+	constructor(message: string, status: number, code: string, details?: string) {
+		super(message);
+		this.name = 'ApiRequestError';
+		this.status = status;
+		this.code = code;
+		this.details = details;
+	}
+}
+
+/**
+ * Token pair returned from auth endpoints
+ */
+export interface TokenPair {
+	accessToken: string;
+	refreshToken: string;
+	expiresAt: string;
+}
+
+/**
+ * Get stored access token
+ */
+export function getAccessToken(): string | null {
+	if (typeof window === 'undefined') return null;
+	return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+/**
+ * Get stored refresh token
+ */
+export function getRefreshToken(): string | null {
+	if (typeof window === 'undefined') return null;
+	return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Store tokens in localStorage
+ */
+export function setTokens(accessToken: string, refreshToken: string): void {
+	if (typeof window === 'undefined') return;
+	localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+	localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+/**
+ * Clear stored tokens
+ */
+export function clearTokens(): void {
+	if (typeof window === 'undefined') return;
+	localStorage.removeItem(ACCESS_TOKEN_KEY);
+	localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Check if user is authenticated (has tokens)
+ */
+export function isAuthenticated(): boolean {
+	return getAccessToken() !== null;
+}
+
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempt to refresh the access token using the refresh token
+ * Returns true if refresh was successful, false otherwise
+ */
+async function refreshAccessToken(): Promise<boolean> {
+	// If already refreshing, wait for that to complete
+	if (isRefreshing && refreshPromise) {
+		return refreshPromise;
+	}
+
+	const refreshToken = getRefreshToken();
+	if (!refreshToken) {
+		return false;
+	}
+
+	isRefreshing = true;
+	refreshPromise = (async () => {
+		try {
+			const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ refreshToken })
+			});
+
+			if (!response.ok) {
+				// Refresh failed - clear tokens
+				clearTokens();
+				return false;
+			}
+
+			const data: TokenPair = await response.json();
+			setTokens(data.accessToken, data.refreshToken);
+			return true;
+		} catch {
+			clearTokens();
+			return false;
+		} finally {
+			isRefreshing = false;
+			refreshPromise = null;
+		}
+	})();
+
+	return refreshPromise;
+}
+
+/**
+ * Request options for the API client
+ */
+export interface RequestOptions {
+	method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+	body?: unknown;
+	headers?: Record<string, string>;
+	skipAuth?: boolean;
+	params?: Record<string, string | number | boolean | undefined>;
+}
+
+/**
+ * Build URL with query parameters
+ */
+function buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
+	const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin);
+	
+	if (params) {
+		Object.entries(params).forEach(([key, value]) => {
+			if (value !== undefined && value !== '') {
+				url.searchParams.append(key, String(value));
+			}
+		});
+	}
+	
+	return url.toString();
+}
+
+/**
+ * Parse response and handle errors
+ */
+async function parseResponse<T>(response: Response): Promise<T> {
+	const contentType = response.headers.get('content-type');
+	
+	if (!response.ok) {
+		let errorData: ApiError = {
+			error: 'Unknown error',
+			code: 'UNKNOWN_ERROR'
+		};
+
+		if (contentType?.includes('application/json')) {
+			try {
+				errorData = await response.json();
+			} catch {
+				// Use default error
+			}
+		}
+
+		throw new ApiRequestError(
+			errorData.error,
+			response.status,
+			errorData.code,
+			errorData.details
+		);
+	}
+
+	// Handle empty responses
+	if (response.status === 204 || !contentType?.includes('application/json')) {
+		return {} as T;
+	}
+
+	return response.json();
+}
+
+/**
+ * Main API request function with automatic token injection and refresh
+ */
+export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+	const { method = 'GET', body, headers = {}, skipAuth = false, params } = options;
+
+	const url = buildUrl(endpoint, params);
+	
+	const requestHeaders: Record<string, string> = {
+		...headers
+	};
+
+	// Add Content-Type for requests with body
+	if (body && !requestHeaders['Content-Type']) {
+		requestHeaders['Content-Type'] = 'application/json';
+	}
+
+	// Add Authorization header if authenticated and not skipping auth
+	if (!skipAuth) {
+		const accessToken = getAccessToken();
+		if (accessToken) {
+			requestHeaders['Authorization'] = `Bearer ${accessToken}`;
+		}
+	}
+
+	const fetchOptions: RequestInit = {
+		method,
+		headers: requestHeaders
+	};
+
+	if (body) {
+		fetchOptions.body = JSON.stringify(body);
+	}
+
+	let response = await fetch(url, fetchOptions);
+
+	// Handle 401 - attempt token refresh and retry
+	if (response.status === 401 && !skipAuth) {
+		const refreshed = await refreshAccessToken();
+		
+		if (refreshed) {
+			// Retry with new token
+			const newAccessToken = getAccessToken();
+			if (newAccessToken) {
+				requestHeaders['Authorization'] = `Bearer ${newAccessToken}`;
+				fetchOptions.headers = requestHeaders;
+				response = await fetch(url, fetchOptions);
+			}
+		}
+	}
+
+	return parseResponse<T>(response);
+}
+
+/**
+ * Convenience methods for common HTTP methods
+ */
+export const api = {
+	get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
+		apiRequest<T>(endpoint, { method: 'GET', params }),
+
+	post: <T>(endpoint: string, body?: unknown) =>
+		apiRequest<T>(endpoint, { method: 'POST', body }),
+
+	put: <T>(endpoint: string, body?: unknown) =>
+		apiRequest<T>(endpoint, { method: 'PUT', body }),
+
+	delete: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
+		apiRequest<T>(endpoint, { method: 'DELETE', params })
+};
