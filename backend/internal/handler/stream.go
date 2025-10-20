@@ -1,0 +1,522 @@
+// Package handler provides HTTP handlers for the file manager API.
+package handler
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/homelab/filemanager/internal/model"
+	"github.com/homelab/filemanager/internal/service"
+)
+
+// StreamHandler handles streaming upload and download operations
+type StreamHandler struct {
+	fileService   service.FileService
+	uploadManager *UploadManager
+	chunkSizeMB   int
+}
+
+// NewStreamHandler creates a new stream handler
+func NewStreamHandler(fileService service.FileService, chunkSizeMB int) *StreamHandler {
+	if chunkSizeMB <= 0 {
+		chunkSizeMB = 10 // Default 10MB chunks
+	}
+	return &StreamHandler{
+		fileService:   fileService,
+		uploadManager: NewUploadManager(),
+		chunkSizeMB:   chunkSizeMB,
+	}
+}
+
+// RegisterRoutes registers stream routes on the given router
+func (h *StreamHandler) RegisterRoutes(r chi.Router) {
+	r.Get("/download/*", h.Download)
+	r.Post("/upload/*", h.Upload)
+	r.Get("/upload/status/*", h.UploadStatus)
+}
+
+// Download handles file download requests with Range header support
+// GET /api/v1/download/*path
+func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
+	path := chi.URLParam(r, "*")
+	if path == "" {
+		writeError(w, "Path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Open the file using the file service (uses filesystem abstraction)
+	file, info, err := h.fileService.OpenFile(r.Context(), path)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+	defer file.Close()
+
+	// Detect MIME type
+	mimeType := h.detectMimeType(info.Name)
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name))
+	w.Header().Set("Accept-Ranges", "bytes")
+
+	// Use http.ServeContent for Range header support
+	// This handles partial content (206) responses automatically
+	// We need to cast to io.ReadSeeker for ServeContent
+	if rs, ok := file.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, info.Name, info.ModTime, rs)
+	} else {
+		// Fallback: copy the entire file if seeking is not supported
+		w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
+		io.Copy(w, file)
+	}
+}
+
+// detectMimeType detects the MIME type based on file extension
+func (h *StreamHandler) detectMimeType(filename string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return ""
+	}
+	return mime.TypeByExtension(ext)
+}
+
+// handleServiceError converts service errors to HTTP responses
+func (h *StreamHandler) handleServiceError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrPathNotFound):
+		writeError(w, "Path not found", model.ErrCodeNotFound, http.StatusNotFound)
+	case errors.Is(err, service.ErrNotFile):
+		writeError(w, "Cannot download a directory", model.ErrCodeValidationError, http.StatusBadRequest)
+	case errors.Is(err, service.ErrPermissionDenied):
+		writeError(w, "Permission denied", model.ErrCodePermissionDenied, http.StatusForbidden)
+	case errors.Is(err, service.ErrMountPointNotFound):
+		writeError(w, "Mount point not found or access denied", model.ErrCodeAccessDenied, http.StatusForbidden)
+	default:
+		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
+	}
+}
+
+
+// UploadSession tracks the state of a chunked upload
+type UploadSession struct {
+	ID           string    `json:"id"`
+	Path         string    `json:"path"`
+	TotalChunks  int       `json:"totalChunks"`
+	ChunkSize    int64     `json:"chunkSize"`
+	TotalSize    int64     `json:"totalSize"`
+	ReceivedChunks map[int]bool `json:"-"`
+	TempDir      string    `json:"-"`
+	CreatedAt    time.Time `json:"createdAt"`
+	LastActivity time.Time `json:"lastActivity"`
+	mu           sync.RWMutex
+}
+
+// UploadManager manages active upload sessions
+type UploadManager struct {
+	sessions map[string]*UploadSession
+	mu       sync.RWMutex
+}
+
+// NewUploadManager creates a new upload manager
+func NewUploadManager() *UploadManager {
+	return &UploadManager{
+		sessions: make(map[string]*UploadSession),
+	}
+}
+
+// CreateSession creates a new upload session
+func (m *UploadManager) CreateSession(id, path string, totalChunks int, chunkSize, totalSize int64) (*UploadSession, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Create temp directory for chunks
+	tempDir, err := os.MkdirTemp("", "upload-"+id+"-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	session := &UploadSession{
+		ID:             id,
+		Path:           path,
+		TotalChunks:    totalChunks,
+		ChunkSize:      chunkSize,
+		TotalSize:      totalSize,
+		ReceivedChunks: make(map[int]bool),
+		TempDir:        tempDir,
+		CreatedAt:      time.Now(),
+		LastActivity:   time.Now(),
+	}
+
+	m.sessions[id] = session
+	return session, nil
+}
+
+// GetSession retrieves an upload session by ID
+func (m *UploadManager) GetSession(id string) (*UploadSession, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	session, ok := m.sessions[id]
+	return session, ok
+}
+
+// DeleteSession removes an upload session and cleans up temp files
+func (m *UploadManager) DeleteSession(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if session, ok := m.sessions[id]; ok {
+		os.RemoveAll(session.TempDir)
+		delete(m.sessions, id)
+	}
+}
+
+// MarkChunkReceived marks a chunk as received
+func (s *UploadSession) MarkChunkReceived(index int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ReceivedChunks[index] = true
+	s.LastActivity = time.Now()
+}
+
+// IsChunkReceived checks if a chunk has been received
+func (s *UploadSession) IsChunkReceived(index int) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.ReceivedChunks[index]
+}
+
+// IsComplete checks if all chunks have been received
+func (s *UploadSession) IsComplete() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.ReceivedChunks) == s.TotalChunks
+}
+
+// GetReceivedCount returns the number of received chunks
+func (s *UploadSession) GetReceivedCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.ReceivedChunks)
+}
+
+// GetMissingChunks returns a list of missing chunk indices
+func (s *UploadSession) GetMissingChunks() []int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	missing := make([]int, 0)
+	for i := 0; i < s.TotalChunks; i++ {
+		if !s.ReceivedChunks[i] {
+			missing = append(missing, i)
+		}
+	}
+	return missing
+}
+
+
+// UploadRequest represents the headers for a chunk upload
+type UploadRequest struct {
+	UploadID    string
+	ChunkIndex  int
+	TotalChunks int
+	ChunkSize   int64
+	TotalSize   int64
+	Checksum    string // SHA256 checksum for final verification
+}
+
+// UploadResponse represents the response for a chunk upload
+type UploadResponse struct {
+	UploadID       string `json:"uploadId"`
+	ChunkIndex     int    `json:"chunkIndex"`
+	ReceivedChunks int    `json:"receivedChunks"`
+	TotalChunks    int    `json:"totalChunks"`
+	Complete       bool   `json:"complete"`
+	Path           string `json:"path,omitempty"`
+}
+
+// UploadStatusResponse represents the status of an upload session
+type UploadStatusResponse struct {
+	UploadID       string    `json:"uploadId"`
+	Path           string    `json:"path"`
+	TotalChunks    int       `json:"totalChunks"`
+	ReceivedChunks int       `json:"receivedChunks"`
+	MissingChunks  []int     `json:"missingChunks"`
+	Complete       bool      `json:"complete"`
+	CreatedAt      time.Time `json:"createdAt"`
+	LastActivity   time.Time `json:"lastActivity"`
+}
+
+// Upload handles chunked file uploads
+// POST /api/v1/upload/*path
+// Headers:
+//   X-Upload-ID: unique upload identifier
+//   X-Chunk-Index: current chunk index (0-based)
+//   X-Total-Chunks: total number of chunks
+//   X-Chunk-Size: size of each chunk in bytes
+//   X-Total-Size: total file size in bytes
+//   X-Checksum: SHA256 checksum (only on final chunk)
+func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	path := chi.URLParam(r, "*")
+	if path == "" {
+		writeError(w, "Path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Parse upload headers
+	uploadReq, err := h.parseUploadHeaders(r)
+	if err != nil {
+		writeError(w, err.Error(), model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Validate path and check write permissions
+	mount, fsPath, err := h.fileService.ResolvePath(path)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	if mount.ReadOnly {
+		writeError(w, "Mount point is read-only", model.ErrCodeReadOnly, http.StatusForbidden)
+		return
+	}
+
+	// Get or create upload session
+	session, exists := h.uploadManager.GetSession(uploadReq.UploadID)
+	if !exists {
+		session, err = h.uploadManager.CreateSession(
+			uploadReq.UploadID,
+			path,
+			uploadReq.TotalChunks,
+			uploadReq.ChunkSize,
+			uploadReq.TotalSize,
+		)
+		if err != nil {
+			writeError(w, "Failed to create upload session", model.ErrCodeInternalError, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Check if chunk was already received (for resumable uploads)
+	if session.IsChunkReceived(uploadReq.ChunkIndex) {
+		writeJSON(w, UploadResponse{
+			UploadID:       session.ID,
+			ChunkIndex:     uploadReq.ChunkIndex,
+			ReceivedChunks: session.GetReceivedCount(),
+			TotalChunks:    session.TotalChunks,
+			Complete:       session.IsComplete(),
+		}, http.StatusOK)
+		return
+	}
+
+	// Save chunk to temp file
+	chunkPath := filepath.Join(session.TempDir, fmt.Sprintf("chunk_%d", uploadReq.ChunkIndex))
+	chunkFile, err := os.Create(chunkPath)
+	if err != nil {
+		writeError(w, "Failed to create chunk file", model.ErrCodeInternalError, http.StatusInternalServerError)
+		return
+	}
+
+	_, err = io.Copy(chunkFile, r.Body)
+	chunkFile.Close()
+	if err != nil {
+		os.Remove(chunkPath)
+		writeError(w, "Failed to write chunk", model.ErrCodeInternalError, http.StatusInternalServerError)
+		return
+	}
+
+	// Mark chunk as received
+	session.MarkChunkReceived(uploadReq.ChunkIndex)
+
+	// Check if upload is complete
+	if session.IsComplete() {
+		// Assemble chunks into final file
+		err = h.assembleChunks(session, fsPath, uploadReq.Checksum)
+		if err != nil {
+			h.uploadManager.DeleteSession(session.ID)
+			if strings.Contains(err.Error(), "checksum") {
+				writeError(w, err.Error(), model.ErrCodeChecksumMismatch, http.StatusUnprocessableEntity)
+			} else {
+				writeError(w, "Failed to assemble file: "+err.Error(), model.ErrCodeInternalError, http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Clean up session
+		h.uploadManager.DeleteSession(session.ID)
+
+		writeJSON(w, UploadResponse{
+			UploadID:       session.ID,
+			ChunkIndex:     uploadReq.ChunkIndex,
+			ReceivedChunks: session.TotalChunks,
+			TotalChunks:    session.TotalChunks,
+			Complete:       true,
+			Path:           path,
+		}, http.StatusCreated)
+		return
+	}
+
+	writeJSON(w, UploadResponse{
+		UploadID:       session.ID,
+		ChunkIndex:     uploadReq.ChunkIndex,
+		ReceivedChunks: session.GetReceivedCount(),
+		TotalChunks:    session.TotalChunks,
+		Complete:       false,
+	}, http.StatusOK)
+}
+
+
+// parseUploadHeaders parses and validates upload request headers
+func (h *StreamHandler) parseUploadHeaders(r *http.Request) (*UploadRequest, error) {
+	uploadID := r.Header.Get("X-Upload-ID")
+	if uploadID == "" {
+		return nil, errors.New("X-Upload-ID header is required")
+	}
+
+	chunkIndexStr := r.Header.Get("X-Chunk-Index")
+	if chunkIndexStr == "" {
+		return nil, errors.New("X-Chunk-Index header is required")
+	}
+	chunkIndex, err := strconv.Atoi(chunkIndexStr)
+	if err != nil || chunkIndex < 0 {
+		return nil, errors.New("X-Chunk-Index must be a non-negative integer")
+	}
+
+	totalChunksStr := r.Header.Get("X-Total-Chunks")
+	if totalChunksStr == "" {
+		return nil, errors.New("X-Total-Chunks header is required")
+	}
+	totalChunks, err := strconv.Atoi(totalChunksStr)
+	if err != nil || totalChunks < 1 {
+		return nil, errors.New("X-Total-Chunks must be a positive integer")
+	}
+
+	if chunkIndex >= totalChunks {
+		return nil, errors.New("X-Chunk-Index must be less than X-Total-Chunks")
+	}
+
+	chunkSizeStr := r.Header.Get("X-Chunk-Size")
+	if chunkSizeStr == "" {
+		return nil, errors.New("X-Chunk-Size header is required")
+	}
+	chunkSize, err := strconv.ParseInt(chunkSizeStr, 10, 64)
+	if err != nil || chunkSize < 1 {
+		return nil, errors.New("X-Chunk-Size must be a positive integer")
+	}
+
+	totalSizeStr := r.Header.Get("X-Total-Size")
+	if totalSizeStr == "" {
+		return nil, errors.New("X-Total-Size header is required")
+	}
+	totalSize, err := strconv.ParseInt(totalSizeStr, 10, 64)
+	if err != nil || totalSize < 1 {
+		return nil, errors.New("X-Total-Size must be a positive integer")
+	}
+
+	// Checksum is optional but required on final chunk for verification
+	checksum := r.Header.Get("X-Checksum")
+
+	return &UploadRequest{
+		UploadID:    uploadID,
+		ChunkIndex:  chunkIndex,
+		TotalChunks: totalChunks,
+		ChunkSize:   chunkSize,
+		TotalSize:   totalSize,
+		Checksum:    checksum,
+	}, nil
+}
+
+// assembleChunks combines all chunks into the final file
+func (h *StreamHandler) assembleChunks(session *UploadSession, destPath string, expectedChecksum string) error {
+	// Get the filesystem from the file service
+	fs := h.fileService.GetFilesystem()
+
+	// Ensure parent directory exists
+	parentDir := filepath.Dir(destPath)
+	if err := fs.MkdirAll(parentDir, 0755); err != nil {
+		return fmt.Errorf("failed to create parent directory: %w", err)
+	}
+
+	// Create destination file using filesystem abstraction
+	destFile, err := fs.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	// Create hasher for checksum verification
+	hasher := sha256.New()
+	writer := io.MultiWriter(destFile, hasher)
+
+	// Assemble chunks in order
+	for i := 0; i < session.TotalChunks; i++ {
+		chunkPath := filepath.Join(session.TempDir, fmt.Sprintf("chunk_%d", i))
+		chunkFile, err := os.Open(chunkPath)
+		if err != nil {
+			return fmt.Errorf("failed to open chunk %d: %w", i, err)
+		}
+
+		_, err = io.Copy(writer, chunkFile)
+		chunkFile.Close()
+		if err != nil {
+			return fmt.Errorf("failed to copy chunk %d: %w", i, err)
+		}
+	}
+
+	// Verify checksum if provided
+	if expectedChecksum != "" {
+		actualChecksum := hex.EncodeToString(hasher.Sum(nil))
+		// Handle both with and without "sha256:" prefix
+		expected := strings.TrimPrefix(expectedChecksum, "sha256:")
+		if actualChecksum != expected {
+			// Remove the incomplete file
+			fs.Remove(destPath)
+			return fmt.Errorf("checksum mismatch: expected %s, got %s", expected, actualChecksum)
+		}
+	}
+
+	return nil
+}
+
+// UploadStatus returns the status of an upload session
+// GET /api/v1/upload/status/*path
+func (h *StreamHandler) UploadStatus(w http.ResponseWriter, r *http.Request) {
+	uploadID := r.URL.Query().Get("uploadId")
+	if uploadID == "" {
+		writeError(w, "uploadId query parameter is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	session, exists := h.uploadManager.GetSession(uploadID)
+	if !exists {
+		writeError(w, "Upload session not found", model.ErrCodeNotFound, http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, UploadStatusResponse{
+		UploadID:       session.ID,
+		Path:           session.Path,
+		TotalChunks:    session.TotalChunks,
+		ReceivedChunks: session.GetReceivedCount(),
+		MissingChunks:  session.GetMissingChunks(),
+		Complete:       session.IsComplete(),
+		CreatedAt:      session.CreatedAt,
+		LastActivity:   session.LastActivity,
+	}, http.StatusOK)
+}
