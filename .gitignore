@@ -1,0 +1,51 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+logs/
+
+# SSL certificates (keep example, ignore real ones)
+nginx/certs/*.pem
+nginx/certs/*.crt
+nginx/certs/*.key
+!nginx/certs/.gitkeep
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage reports
+coverage/
+coverage.out
+coverage.html
+
+# Node modules (frontend has its own .gitignore)
+node_modules/
+
+# Go
+vendor/
+
+# Docker
+.docker/
