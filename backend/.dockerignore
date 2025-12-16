@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+
+# Test files
+*_test.go
+*.test
+coverage.out
+coverage.html
+
+# Documentation
+*.md
+!README.md
+
+# Local config (use mounted config in container)
+config.local.yaml
+
+# Temporary files
+tmp/
+temp/
