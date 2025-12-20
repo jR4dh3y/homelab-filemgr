@@ -1,45 +1,126 @@
-﻿// Package service provides business logic for the file manager.
+// Package service provides business logic for the file manager.
 package service
 
 import (
 	"context"
 	"errors"
+	"io"
 	"io/fs"
+	"mime"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
+	"github.com/homelab/filemanager/internal/pkg/validator"
 )
 
 // File service errors
 var (
-	ErrPathNotFound     = errors.New("path not found")
-	ErrPathExists       = errors.New("path already exists")
-	ErrNotDirectory     = errors.New("path is not a directory")
-	ErrPermissionDenied = errors.New("permission denied")
+	ErrPathNotFound      = errors.New("path not found")
+	ErrPathExists        = errors.New("path already exists")
+	ErrNotDirectory      = errors.New("path is not a directory")
+	ErrNotFile           = errors.New("path is not a file")
+	ErrPermissionDenied  = errors.New("permission denied")
+	ErrInvalidOperation  = errors.New("invalid operation")
+	ErrMountPointNotFound = errors.New("mount point not found")
 )
+
+// File represents an open file that can be read and seeked
+type File interface {
+	io.Reader
+	io.Seeker
+	io.Closer
+}
+
+// WriteFile represents an open file that can be written to
+type WriteFile interface {
+	io.Writer
+	io.Closer
+}
 
 // FileService defines the file operations service interface
 type FileService interface {
-	List(ctx context.Context, path string) ([]model.FileInfo, error)
+	// List returns a paginated list of files in a directory
+	List(ctx context.Context, path string, opts model.ListOptions) (*model.FileList, error)
+	// GetInfo returns metadata for a file or directory
 	GetInfo(ctx context.Context, path string) (*model.FileInfo, error)
+	// CreateDir creates a new directory
 	CreateDir(ctx context.Context, path string) error
+	// Rename renames/moves a file or directory
+	Rename(ctx context.Context, oldPath, newPath string) error
+	// Delete removes a file or directory
 	Delete(ctx context.Context, path string) error
+	// ListMountPoints returns all configured mount points
+	ListMountPoints() []model.MountPoint
+	// ResolvePath resolves a virtual path to a filesystem path
+	ResolvePath(path string) (*model.MountPoint, string, error)
+	// OpenFile opens a file for reading using the filesystem abstraction
+	OpenFile(ctx context.Context, path string) (File, *model.FileInfo, error)
+	// CreateFile creates a new file for writing using the filesystem abstraction
+	CreateFile(ctx context.Context, path string) (WriteFile, error)
+	// GetFilesystem returns the underlying filesystem for advanced operations
+	GetFilesystem() filesystem.FS
 }
 
+
+// fileService implements FileService
 type fileService struct {
-	fs       filesystem.FS
-	basePath string
+	fs          filesystem.FS
+	mountPoints []model.MountPoint
 }
 
-func NewFileService(fsys filesystem.FS, basePath string) FileService {
-	return &fileService{fs: fsys, basePath: basePath}
+// FileServiceConfig holds configuration for the file service
+type FileServiceConfig struct {
+	MountPoints []model.MountPoint
 }
 
-func (s *fileService) List(ctx context.Context, path string) ([]model.FileInfo, error) {
-	fullPath := filepath.Join(s.basePath, path)
-	
-	info, err := s.fs.Stat(fullPath)
+// NewFileService creates a new file service
+func NewFileService(fsys filesystem.FS, cfg FileServiceConfig) FileService {
+	return &fileService{
+		fs:          fsys,
+		mountPoints: cfg.MountPoints,
+	}
+}
+
+// ListMountPoints returns all configured mount points
+func (s *fileService) ListMountPoints() []model.MountPoint {
+	return s.mountPoints
+}
+
+// ResolvePath resolves a virtual path to a mount point and filesystem path
+func (s *fileService) ResolvePath(path string) (*model.MountPoint, string, error) {
+	return validator.ValidatePathAgainstMounts(path, s.mountPoints)
+}
+
+// List returns a paginated list of files in a directory
+func (s *fileService) List(ctx context.Context, path string, opts model.ListOptions) (*model.FileList, error) {
+	// Apply defaults
+	if opts.Page < 1 {
+		opts.Page = 1
+	}
+	if opts.PageSize < 1 {
+		opts.PageSize = 50
+	}
+	if opts.SortBy == "" {
+		opts.SortBy = "name"
+	}
+	if opts.SortDir == "" {
+		opts.SortDir = "asc"
+	}
+
+	// Resolve the path to filesystem path
+	_, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return nil, ErrMountPointNotFound
+		}
+		return nil, err
+	}
+
+	// Check if path exists and is a directory
+	info, err := s.fs.Stat(fsPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, ErrPathNotFound
@@ -50,50 +131,330 @@ func (s *fileService) List(ctx context.Context, path string) ([]model.FileInfo, 
 		return nil, ErrNotDirectory
 	}
 
-	entries, err := s.fs.ReadDir(fullPath)
+	// Read directory entries
+	entries, err := s.fs.ReadDir(fsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]model.FileInfo, 0, len(entries))
+	// Apply filter
+	var filtered []fs.DirEntry
+	filterLower := strings.ToLower(opts.Filter)
 	for _, entry := range entries {
-		entryInfo, _ := entry.Info()
-		items = append(items, model.FileInfo{
-			Name:    entry.Name(),
-			Path:    filepath.Join(path, entry.Name()),
-			Size:    entryInfo.Size(),
-			IsDir:   entry.IsDir(),
-			ModTime: entryInfo.ModTime(),
-		})
+		if opts.Filter == "" || strings.Contains(strings.ToLower(entry.Name()), filterLower) {
+			filtered = append(filtered, entry)
+		}
 	}
 
-	return items, nil
+	totalCount := len(filtered)
+
+	// Sort entries
+	s.sortEntries(filtered, opts.SortBy, opts.SortDir)
+
+	// Paginate
+	start := (opts.Page - 1) * opts.PageSize
+	end := start + opts.PageSize
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	page := filtered[start:end]
+
+	// Convert to FileInfo
+	items := make([]model.FileInfo, 0, len(page))
+	for _, entry := range page {
+		entryInfo, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		items = append(items, s.toFileInfo(entry.Name(), filepath.Join(path, entry.Name()), entryInfo))
+	}
+
+	return &model.FileList{
+		Path:       path,
+		Items:      items,
+		TotalCount: totalCount,
+		Page:       opts.Page,
+		PageSize:   opts.PageSize,
+	}, nil
 }
 
+
+// GetInfo returns metadata for a file or directory
 func (s *fileService) GetInfo(ctx context.Context, path string) (*model.FileInfo, error) {
-	fullPath := filepath.Join(s.basePath, path)
-	info, err := s.fs.Stat(fullPath)
+	// Resolve the path to filesystem path
+	_, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return nil, ErrMountPointNotFound
+		}
+		return nil, err
+	}
+
+	// Get file info
+	info, err := s.fs.Stat(fsPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, ErrPathNotFound
 		}
 		return nil, err
 	}
-	return &model.FileInfo{
-		Name:    info.Name(),
-		Path:    path,
-		Size:    info.Size(),
-		IsDir:   info.IsDir(),
-		ModTime: info.ModTime(),
-	}, nil
+
+	fileInfo := s.toFileInfo(info.Name(), path, info)
+	return &fileInfo, nil
 }
 
+// CreateDir creates a new directory
 func (s *fileService) CreateDir(ctx context.Context, path string) error {
-	fullPath := filepath.Join(s.basePath, path)
-	return s.fs.MkdirAll(fullPath, 0755)
+	// Resolve the path to filesystem path
+	mount, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return ErrMountPointNotFound
+		}
+		return err
+	}
+
+	// Check if mount is read-only
+	if mount.ReadOnly {
+		return ErrPermissionDenied
+	}
+
+	// Check if path already exists
+	exists, err := s.fs.Exists(fsPath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrPathExists
+	}
+
+	// Create directory
+	return s.fs.MkdirAll(fsPath, 0755)
 }
 
+// Rename renames/moves a file or directory
+func (s *fileService) Rename(ctx context.Context, oldPath, newPath string) error {
+	// Resolve old path
+	oldMount, oldFsPath, err := s.ResolvePath(oldPath)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return ErrMountPointNotFound
+		}
+		return err
+	}
+
+	// Check if old mount is read-only
+	if oldMount.ReadOnly {
+		return ErrPermissionDenied
+	}
+
+	// Resolve new path
+	newMount, newFsPath, err := s.ResolvePath(newPath)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return ErrMountPointNotFound
+		}
+		return err
+	}
+
+	// Check if new mount is read-only
+	if newMount.ReadOnly {
+		return ErrPermissionDenied
+	}
+
+	// Check if old path exists
+	exists, err := s.fs.Exists(oldFsPath)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrPathNotFound
+	}
+
+	// Check if new path already exists
+	exists, err = s.fs.Exists(newFsPath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrPathExists
+	}
+
+	// Perform rename
+	return s.fs.Rename(oldFsPath, newFsPath)
+}
+
+// Delete removes a file or directory
 func (s *fileService) Delete(ctx context.Context, path string) error {
-	fullPath := filepath.Join(s.basePath, path)
-	return s.fs.RemoveAll(fullPath)
+	// Resolve the path to filesystem path
+	mount, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return ErrMountPointNotFound
+		}
+		return err
+	}
+
+	// Check if mount is read-only
+	if mount.ReadOnly {
+		return ErrPermissionDenied
+	}
+
+	// Check if path exists
+	exists, err := s.fs.Exists(fsPath)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrPathNotFound
+	}
+
+	// Remove file or directory
+	return s.fs.RemoveAll(fsPath)
+}
+
+// OpenFile opens a file for reading using the filesystem abstraction
+func (s *fileService) OpenFile(ctx context.Context, path string) (File, *model.FileInfo, error) {
+	// Resolve the path to filesystem path
+	_, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return nil, nil, ErrMountPointNotFound
+		}
+		return nil, nil, err
+	}
+
+	// Get file info
+	info, err := s.fs.Stat(fsPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, ErrPathNotFound
+		}
+		return nil, nil, err
+	}
+
+	// Check if it's a directory
+	if info.IsDir() {
+		return nil, nil, ErrNotFile
+	}
+
+	// Open the file
+	file, err := s.fs.Open(fsPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fileInfo := s.toFileInfo(info.Name(), path, info)
+	return file, &fileInfo, nil
+}
+
+// CreateFile creates a new file for writing using the filesystem abstraction
+func (s *fileService) CreateFile(ctx context.Context, path string) (WriteFile, error) {
+	// Resolve the path to filesystem path
+	mount, fsPath, err := s.ResolvePath(path)
+	if err != nil {
+		if errors.Is(err, validator.ErrOutsideMountPoint) {
+			return nil, ErrMountPointNotFound
+		}
+		return nil, err
+	}
+
+	// Check if mount is read-only
+	if mount.ReadOnly {
+		return nil, ErrPermissionDenied
+	}
+
+	// Ensure parent directory exists
+	parentDir := filepath.Dir(fsPath)
+	if err := s.fs.MkdirAll(parentDir, 0755); err != nil {
+		return nil, err
+	}
+
+	// Create the file
+	file, err := s.fs.Create(fsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+// GetFilesystem returns the underlying filesystem for advanced operations
+func (s *fileService) GetFilesystem() filesystem.FS {
+	return s.fs
+}
+
+
+// sortEntries sorts directory entries based on the given criteria
+func (s *fileService) sortEntries(entries []fs.DirEntry, sortBy, sortDir string) {
+	sort.Slice(entries, func(i, j int) bool {
+		var less bool
+
+		switch sortBy {
+		case "name":
+			less = strings.ToLower(entries[i].Name()) < strings.ToLower(entries[j].Name())
+		case "size":
+			iInfo, _ := entries[i].Info()
+			jInfo, _ := entries[j].Info()
+			iSize := int64(0)
+			jSize := int64(0)
+			if iInfo != nil {
+				iSize = iInfo.Size()
+			}
+			if jInfo != nil {
+				jSize = jInfo.Size()
+			}
+			less = iSize < jSize
+		case "modTime":
+			iInfo, _ := entries[i].Info()
+			jInfo, _ := entries[j].Info()
+			if iInfo != nil && jInfo != nil {
+				less = iInfo.ModTime().Before(jInfo.ModTime())
+			}
+		case "type":
+			// Directories first, then by name
+			iDir := entries[i].IsDir()
+			jDir := entries[j].IsDir()
+			if iDir != jDir {
+				less = iDir
+			} else {
+				less = strings.ToLower(entries[i].Name()) < strings.ToLower(entries[j].Name())
+			}
+		default:
+			less = strings.ToLower(entries[i].Name()) < strings.ToLower(entries[j].Name())
+		}
+
+		if sortDir == "desc" {
+			return !less
+		}
+		return less
+	})
+}
+
+// toFileInfo converts fs.FileInfo to model.FileInfo
+func (s *fileService) toFileInfo(name, path string, info fs.FileInfo) model.FileInfo {
+	fileInfo := model.FileInfo{
+		Name:        name,
+		Path:        path,
+		Size:        info.Size(),
+		IsDir:       info.IsDir(),
+		ModTime:     info.ModTime(),
+		Permissions: info.Mode().String(),
+	}
+
+	// Set MIME type for files
+	if !info.IsDir() {
+		ext := filepath.Ext(name)
+		if ext != "" {
+			mimeType := mime.TypeByExtension(ext)
+			if mimeType != "" {
+				fileInfo.MimeType = mimeType
+			}
+		}
+	}
+
+	return fileInfo
 }
