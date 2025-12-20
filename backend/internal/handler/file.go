@@ -1,34 +1,284 @@
-﻿package handler
+package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/service"
 )
 
+// FileHandler handles file-related HTTP requests
 type FileHandler struct {
 	fileService service.FileService
 }
 
+// NewFileHandler creates a new file handler
 func NewFileHandler(fileService service.FileService) *FileHandler {
-	return &FileHandler{fileService: fileService}
+	return &FileHandler{
+		fileService: fileService,
+	}
 }
 
+// RegisterRoutes registers file routes on the given router
 func (h *FileHandler) RegisterRoutes(r chi.Router) {
-	r.Get("/*", h.ListFiles)
+	r.Get("/", h.ListRoots)
+	r.Get("/*", h.GetPath)
+	r.Post("/*", h.CreateDir)
+	r.Put("/*", h.Rename)
+	r.Delete("/*", h.Delete)
 }
 
-func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
+// MountPointResponse represents a mount point in API responses
+type MountPointResponse struct {
+	Name     string `json:"name"`
+	ReadOnly bool   `json:"readOnly"`
+}
+
+// RootsResponse represents the list of mount points
+type RootsResponse struct {
+	Roots []MountPointResponse `json:"roots"`
+}
+
+// CreateDirRequest represents the create directory request body
+type CreateDirRequest struct {
+	Name string `json:"name"`
+}
+
+// RenameRequest represents the rename request body
+type RenameRequest struct {
+	NewPath string `json:"newPath"`
+}
+
+
+// ListRoots returns all configured mount points
+// GET /api/v1/files
+func (h *FileHandler) ListRoots(w http.ResponseWriter, r *http.Request) {
+	mounts := h.fileService.ListMountPoints()
+
+	roots := make([]MountPointResponse, len(mounts))
+	for i, mount := range mounts {
+		roots[i] = MountPointResponse{
+			Name:     mount.Name,
+			ReadOnly: mount.ReadOnly,
+		}
+	}
+
+	writeJSON(w, RootsResponse{Roots: roots}, http.StatusOK)
+}
+
+// GetPath handles GET requests for a path - returns directory listing or file info
+// GET /api/v1/files/*path
+func (h *FileHandler) GetPath(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
-	
-	files, err := h.fileService.List(r.Context(), path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if path == "" {
+		h.ListRoots(w, r)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(files)
+	// Parse query parameters for listing options
+	opts := h.parseListOptions(r)
+
+	// Check if this is a directory or file
+	info, err := h.fileService.GetInfo(r.Context(), path)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	if info.IsDir {
+		// Return directory listing
+		list, err := h.fileService.List(r.Context(), path, opts)
+		if err != nil {
+			h.handleServiceError(w, err)
+			return
+		}
+		writeJSON(w, list, http.StatusOK)
+	} else {
+		// Return file info
+		writeJSON(w, info, http.StatusOK)
+	}
+}
+
+// CreateDir creates a new directory
+// POST /api/v1/files/*path
+func (h *FileHandler) CreateDir(w http.ResponseWriter, r *http.Request) {
+	basePath := chi.URLParam(r, "*")
+
+	var req CreateDirRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "Invalid request body", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Validate directory name
+	if req.Name == "" {
+		writeError(w, "Directory name is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Check for invalid characters in name
+	if strings.ContainsAny(req.Name, "/\\") {
+		writeError(w, "Directory name cannot contain path separators", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Build full path
+	fullPath := basePath
+	if fullPath != "" {
+		fullPath = fullPath + "/" + req.Name
+	} else {
+		fullPath = req.Name
+	}
+
+	// Create directory
+	if err := h.fileService.CreateDir(r.Context(), fullPath); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	// Return the created directory info
+	info, err := h.fileService.GetInfo(r.Context(), fullPath)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, info, http.StatusCreated)
+}
+
+
+// Rename renames/moves a file or directory
+// PUT /api/v1/files/*path
+func (h *FileHandler) Rename(w http.ResponseWriter, r *http.Request) {
+	oldPath := chi.URLParam(r, "*")
+	if oldPath == "" {
+		writeError(w, "Path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	var req RenameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "Invalid request body", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Validate new path
+	if req.NewPath == "" {
+		writeError(w, "New path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Perform rename
+	if err := h.fileService.Rename(r.Context(), oldPath, req.NewPath); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	// Return the renamed file/directory info
+	info, err := h.fileService.GetInfo(r.Context(), req.NewPath)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, info, http.StatusOK)
+}
+
+// Delete removes a file or directory
+// DELETE /api/v1/files/*path
+func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	path := chi.URLParam(r, "*")
+	if path == "" {
+		writeError(w, "Path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Check if confirmation is required (query param)
+	confirm := r.URL.Query().Get("confirm")
+	if confirm != "true" {
+		// Check if path exists and get info
+		info, err := h.fileService.GetInfo(r.Context(), path)
+		if err != nil {
+			h.handleServiceError(w, err)
+			return
+		}
+
+		// If it's a directory, require confirmation
+		if info.IsDir {
+			writeError(w, "Confirmation required to delete directory. Add ?confirm=true to confirm.", model.ErrCodeValidationError, http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Perform delete
+	if err := h.fileService.Delete(r.Context(), path); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, map[string]string{"message": "Deleted successfully"}, http.StatusOK)
+}
+
+
+// parseListOptions extracts listing options from query parameters
+func (h *FileHandler) parseListOptions(r *http.Request) model.ListOptions {
+	opts := model.DefaultListOptions()
+
+	if page := r.URL.Query().Get("page"); page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p > 0 {
+			opts.Page = p
+		}
+	}
+
+	if pageSize := r.URL.Query().Get("pageSize"); pageSize != "" {
+		if ps, err := strconv.Atoi(pageSize); err == nil && ps > 0 && ps <= 1000 {
+			opts.PageSize = ps
+		}
+	}
+
+	if sortBy := r.URL.Query().Get("sortBy"); sortBy != "" {
+		// Validate sort field
+		validSortFields := map[string]bool{"name": true, "size": true, "modTime": true, "type": true}
+		if validSortFields[sortBy] {
+			opts.SortBy = sortBy
+		}
+	}
+
+	if sortDir := r.URL.Query().Get("sortDir"); sortDir != "" {
+		// Validate sort direction
+		if sortDir == "asc" || sortDir == "desc" {
+			opts.SortDir = sortDir
+		}
+	}
+
+	if filter := r.URL.Query().Get("filter"); filter != "" {
+		opts.Filter = filter
+	}
+
+	return opts
+}
+
+// handleServiceError converts service errors to HTTP responses
+func (h *FileHandler) handleServiceError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrPathNotFound):
+		writeError(w, "Path not found", model.ErrCodeNotFound, http.StatusNotFound)
+	case errors.Is(err, service.ErrPathExists):
+		writeError(w, "Path already exists", model.ErrCodeConflict, http.StatusConflict)
+	case errors.Is(err, service.ErrNotDirectory):
+		writeError(w, "Path is not a directory", model.ErrCodeValidationError, http.StatusBadRequest)
+	case errors.Is(err, service.ErrNotFile):
+		writeError(w, "Path is not a file", model.ErrCodeValidationError, http.StatusBadRequest)
+	case errors.Is(err, service.ErrPermissionDenied):
+		writeError(w, "Permission denied", model.ErrCodePermissionDenied, http.StatusForbidden)
+	case errors.Is(err, service.ErrMountPointNotFound):
+		writeError(w, "Mount point not found or access denied", model.ErrCodeAccessDenied, http.StatusForbidden)
+	default:
+		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
+	}
 }
