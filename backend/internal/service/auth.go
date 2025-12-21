@@ -1,68 +1,231 @@
-﻿package service
+package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Auth-related errors
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
+	ErrTokenExpired       = errors.New("token expired")
+	ErrTokenRevoked       = errors.New("token revoked")
 )
 
+// Claims represents the JWT claims for access tokens
 type Claims struct {
+	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
+// TokenPair contains both access and refresh tokens
+type TokenPair struct {
+	AccessToken  string    `json:"accessToken"`
+	RefreshToken string    `json:"refreshToken"`
+	ExpiresAt    time.Time `json:"expiresAt"`
+}
+
+// UserCredentials represents login credentials
+type UserCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// AuthService defines the authentication service interface
 type AuthService interface {
-	Login(ctx context.Context, username, password string) (string, error)
+	Login(ctx context.Context, username, password string) (*TokenPair, error)
+	Refresh(ctx context.Context, refreshToken string) (*TokenPair, error)
 	ValidateToken(tokenString string) (*Claims, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
+
+// authService implements AuthService
 type authService struct {
-	jwtSecret []byte
-	users     map[string]string
+	jwtSecret          []byte
+	accessTokenExpiry  time.Duration
+	refreshTokenExpiry time.Duration
+	users              map[string]string // username -> password (in production, use proper storage)
+	revokedTokens      map[string]time.Time
+	mu                 sync.RWMutex
 }
 
-func NewAuthService(jwtSecret string, users map[string]string) AuthService {
+// AuthServiceConfig holds configuration for the auth service
+type AuthServiceConfig struct {
+	JWTSecret          string
+	AccessTokenExpiry  time.Duration
+	RefreshTokenExpiry time.Duration
+	Users              map[string]string // username -> password
+}
+
+// NewAuthService creates a new authentication service
+func NewAuthService(cfg AuthServiceConfig) AuthService {
+	if cfg.AccessTokenExpiry == 0 {
+		cfg.AccessTokenExpiry = 15 * time.Minute
+	}
+	if cfg.RefreshTokenExpiry == 0 {
+		cfg.RefreshTokenExpiry = 7 * 24 * time.Hour // 7 days
+	}
+	if cfg.Users == nil {
+		cfg.Users = make(map[string]string)
+	}
+
 	return &authService{
-		jwtSecret: []byte(jwtSecret),
-		users:     users,
+		jwtSecret:          []byte(cfg.JWTSecret),
+		accessTokenExpiry:  cfg.AccessTokenExpiry,
+		refreshTokenExpiry: cfg.RefreshTokenExpiry,
+		users:              cfg.Users,
+		revokedTokens:      make(map[string]time.Time),
 	}
 }
 
-func (s *authService) Login(ctx context.Context, username, password string) (string, error) {
+// Login authenticates a user and returns a token pair
+func (s *authService) Login(ctx context.Context, username, password string) (*TokenPair, error) {
+	// Validate credentials
 	storedPassword, exists := s.users[username]
 	if !exists || storedPassword != password {
-		return "", ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	claims := &Claims{
-		Username: username,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
+	return s.generateTokenPair(username)
 }
 
+// Refresh generates a new token pair from a valid refresh token
+func (s *authService) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	// Check if token is revoked
+	s.mu.RLock()
+	if _, revoked := s.revokedTokens[refreshToken]; revoked {
+		s.mu.RUnlock()
+		return nil, ErrTokenRevoked
+	}
+	s.mu.RUnlock()
+
+	// Parse and validate the refresh token
+	claims, err := s.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	// Revoke the old refresh token
+	s.mu.Lock()
+	s.revokedTokens[refreshToken] = time.Now()
+	s.mu.Unlock()
+
+	// Generate new token pair
+	return s.generateTokenPair(claims.Username)
+}
+
+
+// ValidateToken validates a JWT token and returns the claims
 func (s *authService) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
 		return s.jwtSecret, nil
 	})
+
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
 		return nil, ErrInvalidToken
 	}
+
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, ErrInvalidToken
 	}
+
 	return claims, nil
+}
+
+// Logout revokes a refresh token
+func (s *authService) Logout(ctx context.Context, refreshToken string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.revokedTokens[refreshToken] = time.Now()
+	return nil
+}
+
+// generateTokenPair creates a new access and refresh token pair
+func (s *authService) generateTokenPair(username string) (*TokenPair, error) {
+	now := time.Now()
+	userID := generateUserID(username)
+
+	// Create access token
+	accessExpiry := now.Add(s.accessTokenExpiry)
+	accessClaims := &Claims{
+		UserID:   userID,
+		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(accessExpiry),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			Issuer:    "homelab-filemanager",
+			Subject:   username,
+		},
+	}
+
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessTokenString, err := accessToken.SignedString(s.jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create refresh token
+	refreshExpiry := now.Add(s.refreshTokenExpiry)
+	refreshClaims := &Claims{
+		UserID:   userID,
+		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(refreshExpiry),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			Issuer:    "homelab-filemanager",
+			Subject:   username,
+		},
+	}
+
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshTokenString, err := refreshToken.SignedString(s.jwtSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenPair{
+		AccessToken:  accessTokenString,
+		RefreshToken: refreshTokenString,
+		ExpiresAt:    accessExpiry,
+	}, nil
+}
+
+// generateUserID creates a deterministic user ID from username
+func generateUserID(username string) string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// CleanupExpiredTokens removes expired tokens from the revoked list
+// Should be called periodically to prevent memory growth
+func (s *authService) CleanupExpiredTokens() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cutoff := time.Now().Add(-s.refreshTokenExpiry)
+	for token, revokedAt := range s.revokedTokens {
+		if revokedAt.Before(cutoff) {
+			delete(s.revokedTokens, token)
+		}
+	}
 }
