@@ -22,17 +22,10 @@
 		maxDisplay?: number;
 	}
 
-	let {
-		jobs = [],
-		onCancel,
-		onRemove,
-		showCompleted = true,
-		maxDisplay = 10
-	}: Props = $props();
+	let { jobs = [], onCancel, onRemove, showCompleted = true, maxDisplay = 10 }: Props = $props();
 
 	const filteredJobs = $derived(
-		(showCompleted ? jobs : jobs.filter(j => !isJobTerminal(j)))
-			.slice(0, maxDisplay)
+		(showCompleted ? jobs : jobs.filter((j) => !isJobTerminal(j))).slice(0, maxDisplay)
 	);
 
 	const activeCount = $derived(jobs.filter(isJobActive).length);
@@ -42,10 +35,14 @@
 	 */
 	function getJobIcon(type: JobType): string {
 		switch (type) {
-			case 'copy': return '📋';
-			case 'move': return '📦';
-			case 'delete': return '🗑️';
-			default: return '⚙️';
+			case 'copy':
+				return '📋';
+			case 'move':
+				return '📦';
+			case 'delete':
+				return '🗑️';
+			default:
+				return '⚙️';
 		}
 	}
 
@@ -54,10 +51,14 @@
 	 */
 	function getJobTypeLabel(type: JobType): string {
 		switch (type) {
-			case 'copy': return 'Copy';
-			case 'move': return 'Move';
-			case 'delete': return 'Delete';
-			default: return 'Job';
+			case 'copy':
+				return 'Copy';
+			case 'move':
+				return 'Move';
+			case 'delete':
+				return 'Delete';
+			default:
+				return 'Job';
 		}
 	}
 
@@ -66,12 +67,18 @@
 	 */
 	function getStatusClass(state: JobState): string {
 		switch (state) {
-			case 'pending': return 'status-pending';
-			case 'running': return 'status-running';
-			case 'completed': return 'status-completed';
-			case 'failed': return 'status-failed';
-			case 'cancelled': return 'status-cancelled';
-			default: return '';
+			case 'pending':
+				return 'status-pending';
+			case 'running':
+				return 'status-running';
+			case 'completed':
+				return 'status-completed';
+			case 'failed':
+				return 'status-failed';
+			case 'cancelled':
+				return 'status-cancelled';
+			default:
+				return '';
 		}
 	}
 
@@ -80,12 +87,18 @@
 	 */
 	function getStatusText(job: Job): string {
 		switch (job.state) {
-			case 'pending': return 'Waiting...';
-			case 'running': return `${formatPercentage(job.progress, 0, false)}`;
-			case 'completed': return 'Completed';
-			case 'failed': return job.error || 'Failed';
-			case 'cancelled': return 'Cancelled';
-			default: return '';
+			case 'pending':
+				return 'Waiting...';
+			case 'running':
+				return `${formatPercentage(job.progress, 0, false)}`;
+			case 'completed':
+				return 'Completed';
+			case 'failed':
+				return job.error || 'Failed';
+			case 'cancelled':
+				return 'Cancelled';
+			default:
+				return '';
 		}
 	}
 
@@ -130,7 +143,12 @@
 									aria-label="Cancel job"
 								>
 									<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M6 18L18 6M6 6l12 12"
+										/>
 									</svg>
 								</button>
 							{:else if isJobTerminal(job)}
@@ -141,7 +159,12 @@
 									aria-label="Remove from list"
 								>
 									<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M6 18L18 6M6 6l12 12"
+										/>
 									</svg>
 								</button>
 							{/if}
@@ -150,8 +173,8 @@
 
 					{#if job.state === 'running' || job.state === 'pending'}
 						<div class="progress-container">
-							<div 
-								class="progress-bar" 
+							<div
+								class="progress-bar"
 								style="width: {job.progress}%"
 								role="progressbar"
 								aria-valuenow={job.progress}
@@ -328,8 +351,12 @@
 	}
 
 	@keyframes shimmer {
-		0% { background-position: 200% 0; }
-		100% { background-position: -200% 0; }
+		0% {
+			background-position: 200% 0;
+		}
+		100% {
+			background-position: -200% 0;
+		}
 	}
 
 	.job-footer {
@@ -344,10 +371,18 @@
 		color: #6b7280;
 	}
 
-	.status-running .status-text { color: #3b82f6; }
-	.status-completed .status-text { color: #10b981; }
-	.status-failed .status-text { color: #ef4444; }
-	.status-cancelled .status-text { color: #6b7280; }
+	.status-running .status-text {
+		color: #3b82f6;
+	}
+	.status-completed .status-text {
+		color: #10b981;
+	}
+	.status-failed .status-text {
+		color: #ef4444;
+	}
+	.status-cancelled .status-text {
+		color: #6b7280;
+	}
 
 	.job-time {
 		color: #9ca3af;
@@ -425,9 +460,15 @@
 			color: #9ca3af;
 		}
 
-		.status-running .status-text { color: #60a5fa; }
-		.status-completed .status-text { color: #34d399; }
-		.status-failed .status-text { color: #f87171; }
+		.status-running .status-text {
+			color: #60a5fa;
+		}
+		.status-completed .status-text {
+			color: #34d399;
+		}
+		.status-failed .status-text {
+			color: #f87171;
+		}
 
 		.job-time {
 			color: #6b7280;

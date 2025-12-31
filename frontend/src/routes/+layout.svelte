@@ -5,9 +5,20 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 
 	let { children } = $props();
 	let initialized = $state(false);
+
+	// Create QueryClient for TanStack Query
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: {
+				staleTime: 1000 * 60, // 1 minute
+				retry: 1
+			}
+		}
+	});
 
 	// Public routes that don't require authentication
 	const publicRoutes = ['/login'];
@@ -20,10 +31,10 @@
 	// Reactive navigation based on auth state
 	$effect(() => {
 		if (!initialized) return;
-		
+
 		const currentPath = $page.url.pathname;
-		const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
-		
+		const isPublicRoute = publicRoutes.some((route) => currentPath.startsWith(route));
+
 		if (!$isAuthenticated && !isPublicRoute) {
 			goto('/login');
 		} else if ($isAuthenticated && currentPath.startsWith('/login')) {
@@ -39,32 +50,35 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-{#if !initialized}
-	<div class="loading-screen">
-		<div class="loading-spinner"></div>
-	</div>
-{:else}
-	<div class="app-container">
-		{#if $isAuthenticated && !$page.url.pathname.startsWith('/login')}
-			<header class="app-header">
-				<div class="header-content">
-					<a href="/browse" class="app-logo">
-						<span class="logo-icon">📁</span>
-						<span class="logo-text">File Manager</span>
-					</a>
-					<nav class="header-nav">
-						<button type="button" class="logout-btn" onclick={handleLogout}>
-							Logout
-						</button>
-					</nav>
-				</div>
-			</header>
-		{/if}
-		<main class="app-main" class:with-header={$isAuthenticated && !$page.url.pathname.startsWith('/login')}>
-			{@render children()}
-		</main>
-	</div>
-{/if}
+<QueryClientProvider client={queryClient}>
+	{#if !initialized}
+		<div class="loading-screen">
+			<div class="loading-spinner"></div>
+		</div>
+	{:else}
+		<div class="app-container">
+			{#if $isAuthenticated && !$page.url.pathname.startsWith('/login')}
+				<header class="app-header">
+					<div class="header-content">
+						<a href="/browse" class="app-logo">
+							<span class="logo-icon">📁</span>
+							<span class="logo-text">File Manager</span>
+						</a>
+						<nav class="header-nav">
+							<button type="button" class="logout-btn" onclick={handleLogout}> Logout </button>
+						</nav>
+					</div>
+				</header>
+			{/if}
+			<main
+				class="app-main"
+				class:with-header={$isAuthenticated && !$page.url.pathname.startsWith('/login')}
+			>
+				{@render children()}
+			</main>
+		</div>
+	{/if}
+</QueryClientProvider>
 
 <style>
 	.loading-screen {
@@ -85,7 +99,9 @@
 	}
 
 	@keyframes spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.app-container {

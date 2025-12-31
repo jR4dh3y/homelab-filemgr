@@ -149,13 +149,14 @@ function createWebSocketStore() {
 					jobsStore.updateFromWebSocket(message.payload as JobUpdate);
 					break;
 
-				case 'error':
+				case 'error': {
 					const errorPayload = message.payload as { message: string };
 					update((state) => ({
 						...state,
 						error: errorPayload.message
 					}));
 					break;
+				}
 
 				case 'pong':
 					// Connection is healthy, nothing to do
@@ -367,18 +368,12 @@ export const websocketStore = createWebSocketStore();
 /**
  * Derived store for connection state
  */
-export const connectionState = derived(
-	websocketStore,
-	($ws) => $ws.connectionState
-);
+export const connectionState = derived(websocketStore, ($ws) => $ws.connectionState);
 
 /**
  * Derived store for whether connected
  */
-export const isConnected = derived(
-	websocketStore,
-	($ws) => $ws.connectionState === 'connected'
-);
+export const isConnected = derived(websocketStore, ($ws) => $ws.connectionState === 'connected');
 
 /**
  * Derived store for whether reconnecting
@@ -396,7 +391,4 @@ export const websocketError = derived(websocketStore, ($ws) => $ws.error);
 /**
  * Derived store for reconnect attempts
  */
-export const reconnectAttempts = derived(
-	websocketStore,
-	($ws) => $ws.reconnectAttempts
-);
+export const reconnectAttempts = derived(websocketStore, ($ws) => $ws.reconnectAttempts);

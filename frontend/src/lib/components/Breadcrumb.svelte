@@ -44,16 +44,10 @@
 	<button
 		type="button"
 		onclick={handleRootClick}
-		class="flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+		class="flex items-center text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
 		aria-label="Go to root"
 	>
-		<svg
-			class="h-5 w-5"
-			fill="none"
-			stroke="currentColor"
-			viewBox="0 0 24 24"
-			aria-hidden="true"
-		>
+		<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -64,10 +58,10 @@
 	</button>
 
 	{#if segments.length > 0}
-		{#each segments as segment, index}
+		{#each segments as segment, index (index)}
 			<!-- Separator -->
 			<svg
-				class="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0"
+				class="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-gray-500"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -79,7 +73,7 @@
 			{#if index === segments.length - 1}
 				<!-- Current segment (not clickable) -->
 				<span
-					class="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]"
+					class="max-w-[200px] truncate font-medium text-gray-900 dark:text-gray-100"
 					title={segment}
 					aria-current="page"
 				>
@@ -90,7 +84,7 @@
 				<button
 					type="button"
 					onclick={() => handleClick(index)}
-					class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 truncate max-w-[150px] transition-colors"
+					class="max-w-[150px] truncate text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
 					title={segment}
 				>
 					{segment}

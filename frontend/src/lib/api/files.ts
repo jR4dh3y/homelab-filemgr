@@ -100,7 +100,7 @@ export async function listRoots(): Promise<RootsResponse> {
  */
 export async function getPath(path: string, options?: ListOptions): Promise<FileList | FileInfo> {
 	const params: Record<string, string | number | boolean | undefined> = {};
-	
+
 	if (options) {
 		if (options.page !== undefined) params.page = options.page;
 		if (options.pageSize !== undefined) params.pageSize = options.pageSize;

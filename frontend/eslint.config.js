@@ -36,6 +36,13 @@ export default defineConfig(
 				parser: ts.parser,
 				svelteConfig
 			}
+		},
+
+		rules: {
+			// Disable navigation resolve rule - our routes are simple static paths
+			'svelte/no-navigation-without-resolve': 'off',
+			// Allow writable derived pattern alternatives
+			'svelte/prefer-writable-derived': 'off'
 		}
 	}
 );

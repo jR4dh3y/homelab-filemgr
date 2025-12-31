@@ -11,7 +11,7 @@
 
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
-		
+
 		if (!username.trim() || !password) {
 			return;
 		}
@@ -44,7 +44,12 @@
 				<div class="error-message" role="alert">
 					<span class="error-icon">⚠️</span>
 					<span>{$authError}</span>
-					<button type="button" class="error-dismiss" onclick={clearError} aria-label="Dismiss error">
+					<button
+						type="button"
+						class="error-dismiss"
+						onclick={clearError}
+						aria-label="Dismiss error"
+					>
 						×
 					</button>
 				</div>
@@ -78,7 +83,11 @@
 				/>
 			</div>
 
-			<button type="submit" class="submit-btn" disabled={$isAuthLoading || !username.trim() || !password}>
+			<button
+				type="submit"
+				class="submit-btn"
+				disabled={$isAuthLoading || !username.trim() || !password}
+			>
 				{#if $isAuthLoading}
 					<span class="btn-spinner"></span>
 					<span>Signing in...</span>
@@ -195,7 +204,9 @@
 		border-radius: 0.5rem;
 		background: white;
 		color: #111827;
-		transition: border-color 0.15s, box-shadow 0.15s;
+		transition:
+			border-color 0.15s,
+			box-shadow 0.15s;
 	}
 
 	.form-input:focus {
@@ -226,7 +237,9 @@
 		border: none;
 		border-radius: 0.5rem;
 		cursor: pointer;
-		transition: opacity 0.15s, transform 0.15s;
+		transition:
+			opacity 0.15s,
+			transform 0.15s;
 	}
 
 	.submit-btn:hover:not(:disabled) {
@@ -253,7 +266,9 @@
 	}
 
 	@keyframes spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	/* Dark mode */

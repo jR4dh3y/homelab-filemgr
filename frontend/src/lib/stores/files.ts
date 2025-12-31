@@ -11,12 +11,7 @@ import {
 	rename,
 	deleteFile,
 	search,
-	type FileInfo,
-	type FileList,
-	type ListOptions,
-	type MountPoint,
-	type RootsResponse,
-	type SearchResponse
+	type ListOptions
 } from '$lib/api/files';
 
 /**
@@ -193,8 +188,7 @@ export const fileQueryKeys = {
 	roots: () => [...fileQueryKeys.all, 'roots'] as const,
 	list: (path: string, options: ListOptions) =>
 		[...fileQueryKeys.all, 'list', path, options] as const,
-	search: (path: string, query: string) =>
-		[...fileQueryKeys.all, 'search', path, query] as const
+	search: (path: string, query: string) => [...fileQueryKeys.all, 'search', path, query] as const
 };
 
 /**
@@ -363,12 +357,12 @@ export const selectionStore = createSelectionStore();
 /**
  * Derived store for selected items count
  */
-export const selectedCount = derived(
-	selectionStore,
-	($selection) => $selection.selectedItems.size
-);
+export const selectedCount = derived(selectionStore, ($selection) => $selection.selectedItems.size);
 
 /**
  * Derived store for whether any items are selected
  */
-export const hasSelection = derived(selectionStore, ($selection) => $selection.selectedItems.size > 0);
+export const hasSelection = derived(
+	selectionStore,
+	($selection) => $selection.selectedItems.size > 0
+);

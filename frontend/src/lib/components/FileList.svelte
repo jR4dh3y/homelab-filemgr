@@ -7,12 +7,13 @@
 	import type { FileInfo } from '$lib/api/files';
 	import type { SortField, SortDir } from '$lib/types/files';
 	import { formatFileSize, formatFileDate, getFileTypeDescription } from '$lib/utils/format';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
 		items = [],
 		sortBy = 'name',
 		sortDir = 'asc',
-		selectedPaths = new Set<string>(),
+		selectedPaths = new SvelteSet<string>(),
 		isLoading = false,
 		onItemClick,
 		onSortChange,
@@ -39,7 +40,7 @@
 
 	function handleRowClick(item: FileInfo, event: MouseEvent) {
 		if (event.ctrlKey || event.metaKey) {
-			const newSelection = new Set<string>(selectedPaths);
+			const newSelection = new SvelteSet<string>(selectedPaths);
 			if (newSelection.has(item.path)) {
 				newSelection.delete(item.path);
 			} else {
@@ -65,18 +66,51 @@
 
 	function getFileIcon(item: FileInfo): string {
 		if (item.isDir) return '📁';
-		const ext = item.name.includes('.') 
+		const ext = item.name.includes('.')
 			? item.name.slice(item.name.lastIndexOf('.') + 1).toLowerCase()
 			: '';
 		const iconMap: Record<string, string> = {
-			jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', svg: '🖼️', webp: '🖼️',
-			mp4: '🎬', mkv: '🎬', avi: '🎬', mov: '🎬', webm: '🎬',
-			mp3: '🎵', wav: '🎵', flac: '🎵', aac: '🎵', ogg: '🎵',
-			pdf: '📄', doc: '📝', docx: '📝', txt: '📝', md: '📝',
-			xls: '📊', xlsx: '📊', csv: '📊',
-			zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦',
-			js: '💻', ts: '💻', py: '💻', go: '💻', rs: '💻', java: '💻',
-			html: '🌐', css: '🎨', json: '📋', xml: '📋', yaml: '📋', yml: '📋'
+			jpg: '🖼️',
+			jpeg: '🖼️',
+			png: '🖼️',
+			gif: '🖼️',
+			svg: '🖼️',
+			webp: '🖼️',
+			mp4: '🎬',
+			mkv: '🎬',
+			avi: '🎬',
+			mov: '🎬',
+			webm: '🎬',
+			mp3: '🎵',
+			wav: '🎵',
+			flac: '🎵',
+			aac: '🎵',
+			ogg: '🎵',
+			pdf: '📄',
+			doc: '📝',
+			docx: '📝',
+			txt: '📝',
+			md: '📝',
+			xls: '📊',
+			xlsx: '📊',
+			csv: '📊',
+			zip: '📦',
+			rar: '📦',
+			'7z': '📦',
+			tar: '📦',
+			gz: '📦',
+			js: '💻',
+			ts: '💻',
+			py: '💻',
+			go: '💻',
+			rs: '💻',
+			java: '💻',
+			html: '🌐',
+			css: '🎨',
+			json: '📋',
+			xml: '📋',
+			yaml: '📋',
+			yml: '📋'
 		};
 		return iconMap[ext] || '📄';
 	}
@@ -97,8 +131,8 @@
 	<table class="file-table" role="grid" aria-busy={isLoading}>
 		<thead>
 			<tr>
-				<th 
-					class="sortable" 
+				<th
+					class="sortable"
 					class:sorted={sortBy === 'name'}
 					onclick={() => handleSort('name')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('name')}
@@ -108,8 +142,8 @@
 				>
 					Name {getSortIndicator('name')}
 				</th>
-				<th 
-					class="sortable size-col" 
+				<th
+					class="sortable size-col"
 					class:sorted={sortBy === 'size'}
 					onclick={() => handleSort('size')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('size')}
@@ -119,19 +153,23 @@
 				>
 					Size {getSortIndicator('size')}
 				</th>
-				<th 
-					class="sortable date-col" 
+				<th
+					class="sortable date-col"
 					class:sorted={sortBy === 'modTime'}
 					onclick={() => handleSort('modTime')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('modTime')}
 					tabindex="0"
 					role="columnheader"
-					aria-sort={sortBy === 'modTime' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+					aria-sort={sortBy === 'modTime'
+						? sortDir === 'asc'
+							? 'ascending'
+							: 'descending'
+						: 'none'}
 				>
 					Modified {getSortIndicator('modTime')}
 				</th>
-				<th 
-					class="sortable type-col" 
+				<th
+					class="sortable type-col"
 					class:sorted={sortBy === 'type'}
 					onclick={() => handleSort('type')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('type')}
@@ -155,7 +193,7 @@
 				</tr>
 			{:else}
 				{#each items as item (item.path)}
-					<tr 
+					<tr
 						class="file-row"
 						class:selected={isSelected(item.path)}
 						class:directory={item.isDir}
@@ -217,7 +255,9 @@
 	}
 
 	@keyframes spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.file-table {
@@ -256,9 +296,16 @@
 		color: #1d4ed8;
 	}
 
-	.size-col { width: 100px; text-align: right; }
-	.date-col { width: 140px; }
-	.type-col { width: 160px; }
+	.size-col {
+		width: 100px;
+		text-align: right;
+	}
+	.date-col {
+		width: 140px;
+	}
+	.type-col {
+		width: 160px;
+	}
 
 	.file-table td {
 		padding: 0.625rem 1rem;
@@ -271,11 +318,23 @@
 		transition: background-color 0.15s;
 	}
 
-	.file-row:hover { background: #f9fafb; }
-	.file-row:focus { outline: 2px solid #3b82f6; outline-offset: -2px; background: #eff6ff; }
-	.file-row.selected { background: #dbeafe; }
-	.file-row.selected:hover { background: #bfdbfe; }
-	.file-row.directory .file-name { font-weight: 500; }
+	.file-row:hover {
+		background: #f9fafb;
+	}
+	.file-row:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: -2px;
+		background: #eff6ff;
+	}
+	.file-row.selected {
+		background: #dbeafe;
+	}
+	.file-row.selected:hover {
+		background: #bfdbfe;
+	}
+	.file-row.directory .file-name {
+		font-weight: 500;
+	}
 
 	.name-cell {
 		display: flex;
@@ -284,13 +343,32 @@
 		min-width: 200px;
 	}
 
-	.file-icon { font-size: 1.125rem; flex-shrink: 0; }
-	.file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.size-cell { text-align: right; font-variant-numeric: tabular-nums; }
-	.date-cell { white-space: nowrap; }
-	.type-cell { color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.file-icon {
+		font-size: 1.125rem;
+		flex-shrink: 0;
+	}
+	.file-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.size-cell {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+	.date-cell {
+		white-space: nowrap;
+	}
+	.type-cell {
+		color: #6b7280;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
 
-	.empty-row td { padding: 3rem 1rem; }
+	.empty-row td {
+		padding: 3rem 1rem;
+	}
 	.empty-state {
 		display: flex;
 		flex-direction: column;
@@ -298,20 +376,51 @@
 		gap: 0.5rem;
 		color: #9ca3af;
 	}
-	.empty-icon { font-size: 2.5rem; }
+	.empty-icon {
+		font-size: 2.5rem;
+	}
 
 	@media (prefers-color-scheme: dark) {
-		.loading-overlay { background: rgba(17, 24, 39, 0.8); }
-		.spinner { border-color: #374151; border-top-color: #60a5fa; }
-		.file-table th { background: #1f2937; border-bottom-color: #374151; color: #e5e7eb; }
-		.file-table th.sortable:hover { background: #374151; }
-		.file-table th.sorted { background: #1e3a5f; color: #93c5fd; }
-		.file-table td { border-bottom-color: #374151; color: #d1d5db; }
-		.file-row:hover { background: #1f2937; }
-		.file-row:focus { background: #1e3a5f; }
-		.file-row.selected { background: #1e3a5f; }
-		.file-row.selected:hover { background: #1e40af; }
-		.type-cell { color: #9ca3af; }
-		.empty-state { color: #6b7280; }
+		.loading-overlay {
+			background: rgba(17, 24, 39, 0.8);
+		}
+		.spinner {
+			border-color: #374151;
+			border-top-color: #60a5fa;
+		}
+		.file-table th {
+			background: #1f2937;
+			border-bottom-color: #374151;
+			color: #e5e7eb;
+		}
+		.file-table th.sortable:hover {
+			background: #374151;
+		}
+		.file-table th.sorted {
+			background: #1e3a5f;
+			color: #93c5fd;
+		}
+		.file-table td {
+			border-bottom-color: #374151;
+			color: #d1d5db;
+		}
+		.file-row:hover {
+			background: #1f2937;
+		}
+		.file-row:focus {
+			background: #1e3a5f;
+		}
+		.file-row.selected {
+			background: #1e3a5f;
+		}
+		.file-row.selected:hover {
+			background: #1e40af;
+		}
+		.type-cell {
+			color: #9ca3af;
+		}
+		.empty-state {
+			color: #6b7280;
+		}
 	}
 </style>

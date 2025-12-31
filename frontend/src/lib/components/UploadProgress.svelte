@@ -19,17 +19,12 @@
 		showCompleted?: boolean;
 	}
 
-	let {
-		uploads = [],
-		onCancel,
-		onRemove,
-		showCompleted = true
-	}: Props = $props();
+	let { uploads = [], onCancel, onRemove, showCompleted = true }: Props = $props();
 
 	const filteredUploads = $derived(
-		showCompleted 
-			? uploads 
-			: uploads.filter(u => u.status !== 'complete' && u.status !== 'cancelled')
+		showCompleted
+			? uploads
+			: uploads.filter((u) => u.status !== 'complete' && u.status !== 'cancelled')
 	);
 
 	/**
@@ -37,11 +32,16 @@
 	 */
 	function getStatusColor(status: UploadProgressType['status']): string {
 		switch (status) {
-			case 'uploading': return 'status-uploading';
-			case 'complete': return 'status-complete';
-			case 'error': return 'status-error';
-			case 'cancelled': return 'status-cancelled';
-			default: return 'status-pending';
+			case 'uploading':
+				return 'status-uploading';
+			case 'complete':
+				return 'status-complete';
+			case 'error':
+				return 'status-error';
+			case 'cancelled':
+				return 'status-cancelled';
+			default:
+				return 'status-pending';
 		}
 	}
 
@@ -50,12 +50,18 @@
 	 */
 	function getStatusText(upload: UploadProgressType): string {
 		switch (upload.status) {
-			case 'pending': return 'Waiting...';
-			case 'uploading': return `${formatPercentage(upload.percentage, 0, false)} - Chunk ${upload.currentChunk + 1}/${upload.totalChunks}`;
-			case 'complete': return 'Complete';
-			case 'error': return upload.error || 'Failed';
-			case 'cancelled': return 'Cancelled';
-			default: return '';
+			case 'pending':
+				return 'Waiting...';
+			case 'uploading':
+				return `${formatPercentage(upload.percentage, 0, false)} - Chunk ${upload.currentChunk + 1}/${upload.totalChunks}`;
+			case 'complete':
+				return 'Complete';
+			case 'error':
+				return upload.error || 'Failed';
+			case 'cancelled':
+				return 'Cancelled';
+			default:
+				return '';
 		}
 	}
 
@@ -94,8 +100,8 @@
 					</div>
 
 					<div class="progress-bar-container">
-						<div 
-							class="progress-bar" 
+						<div
+							class="progress-bar"
 							style="width: {upload.percentage}%"
 							role="progressbar"
 							aria-valuenow={upload.percentage}
@@ -114,7 +120,12 @@
 								aria-label="Cancel upload of {upload.fileName}"
 							>
 								<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M6 18L18 6M6 6l12 12"
+									/>
 								</svg>
 							</button>
 						{:else if canRemove(upload.status)}
@@ -125,7 +136,12 @@
 								aria-label="Remove {upload.fileName} from list"
 							>
 								<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M6 18L18 6M6 6l12 12"
+									/>
 								</svg>
 							</button>
 						{/if}
@@ -215,10 +231,18 @@
 		color: #6b7280;
 	}
 
-	.status-uploading .status-text { color: #3b82f6; }
-	.status-complete .status-text { color: #10b981; }
-	.status-error .status-text { color: #ef4444; }
-	.status-cancelled .status-text { color: #6b7280; }
+	.status-uploading .status-text {
+		color: #3b82f6;
+	}
+	.status-complete .status-text {
+		color: #10b981;
+	}
+	.status-error .status-text {
+		color: #ef4444;
+	}
+	.status-cancelled .status-text {
+		color: #6b7280;
+	}
 
 	.progress-bar-container {
 		height: 4px;
@@ -234,9 +258,15 @@
 		transition: width 0.3s ease;
 	}
 
-	.status-complete .progress-bar { background: #10b981; }
-	.status-error .progress-bar { background: #ef4444; }
-	.status-cancelled .progress-bar { background: #9ca3af; }
+	.status-complete .progress-bar {
+		background: #10b981;
+	}
+	.status-error .progress-bar {
+		background: #ef4444;
+	}
+	.status-cancelled .progress-bar {
+		background: #9ca3af;
+	}
 
 	.actions {
 		display: flex;
@@ -302,9 +332,15 @@
 			color: #9ca3af;
 		}
 
-		.status-uploading .status-text { color: #60a5fa; }
-		.status-complete .status-text { color: #34d399; }
-		.status-error .status-text { color: #f87171; }
+		.status-uploading .status-text {
+			color: #60a5fa;
+		}
+		.status-complete .status-text {
+			color: #34d399;
+		}
+		.status-error .status-text {
+			color: #f87171;
+		}
 
 		.progress-bar-container {
 			background: #374151;
@@ -314,9 +350,15 @@
 			background: #60a5fa;
 		}
 
-		.status-complete .progress-bar { background: #34d399; }
-		.status-error .progress-bar { background: #f87171; }
-		.status-cancelled .progress-bar { background: #6b7280; }
+		.status-complete .progress-bar {
+			background: #34d399;
+		}
+		.status-error .progress-bar {
+			background: #f87171;
+		}
+		.status-cancelled .progress-bar {
+			background: #6b7280;
+		}
 
 		.action-btn {
 			color: #6b7280;

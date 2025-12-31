@@ -12,8 +12,6 @@
 	import FileList from './FileList.svelte';
 
 	interface Props {
-		/** Current path */
-		currentPath?: string;
 		/** Path segments for breadcrumb */
 		pathSegments?: string[];
 		/** File list data */
@@ -49,7 +47,6 @@
 	}
 
 	let {
-		currentPath = '',
 		pathSegments = [],
 		fileList = null,
 		isLoading = false,
@@ -72,9 +69,7 @@
 
 	// Determine which items to display (search results or file list)
 	const displayItems = $derived(
-		searchQuery && searchResults.length > 0 
-			? searchResults 
-			: (fileList?.items ?? [])
+		searchQuery && searchResults.length > 0 ? searchResults : (fileList?.items ?? [])
 	);
 
 	const isShowingSearchResults = $derived(searchQuery.length > 0 && searchResults.length > 0);
@@ -112,7 +107,7 @@
 	function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		isDragOver = false;
-		
+
 		const files = event.dataTransfer?.files;
 		if (files && files.length > 0) {
 			onFilesDropped?.(Array.from(files));
@@ -120,7 +115,7 @@
 	}
 </script>
 
-<div 
+<div
 	class="file-browser"
 	class:drag-over={isDragOver}
 	ondragover={handleDragOver}
@@ -132,13 +127,13 @@
 	<!-- Header with breadcrumb and search -->
 	<header class="browser-header">
 		<div class="breadcrumb-container">
-			<Breadcrumb segments={pathSegments} onNavigate={onNavigate} />
+			<Breadcrumb segments={pathSegments} {onNavigate} />
 		</div>
 		<div class="search-container">
-			<SearchBar 
+			<SearchBar
 				value={searchQuery}
 				isLoading={isSearching}
-				onSearch={onSearch}
+				{onSearch}
 				onClear={onSearchClear}
 				placeholder="Search in current folder..."
 			/>
@@ -152,11 +147,7 @@
 				<span class="status-text">
 					{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
 				</span>
-				<button 
-					type="button" 
-					class="clear-search-btn"
-					onclick={onSearchClear}
-				>
+				<button type="button" class="clear-search-btn" onclick={onSearchClear}>
 					Clear search
 				</button>
 			{:else if fileList}
@@ -174,15 +165,15 @@
 
 	<!-- File list -->
 	<main class="browser-content">
-		<FileList 
+		<FileList
 			items={displayItems}
 			{sortBy}
 			{sortDir}
 			{selectedPaths}
 			isLoading={isLoading || isSearching}
 			onItemClick={handleItemClick}
-			onSortChange={onSortChange}
-			onSelectionChange={onSelectionChange}
+			{onSortChange}
+			{onSelectionChange}
 		/>
 	</main>
 

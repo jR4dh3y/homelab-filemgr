@@ -151,9 +151,12 @@ export interface RequestOptions {
 /**
  * Build URL with query parameters
  */
-function buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
+function buildUrl(
+	endpoint: string,
+	params?: Record<string, string | number | boolean | undefined>
+): string {
 	const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin);
-	
+
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
 			if (value !== undefined && value !== '') {
@@ -161,7 +164,7 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
 			}
 		});
 	}
-	
+
 	return url.toString();
 }
 
@@ -170,7 +173,7 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
  */
 async function parseResponse<T>(response: Response): Promise<T> {
 	const contentType = response.headers.get('content-type');
-	
+
 	if (!response.ok) {
 		let errorData: ApiError = {
 			error: 'Unknown error',
@@ -185,12 +188,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 			}
 		}
 
-		throw new ApiRequestError(
-			errorData.error,
-			response.status,
-			errorData.code,
-			errorData.details
-		);
+		throw new ApiRequestError(errorData.error, response.status, errorData.code, errorData.details);
 	}
 
 	// Handle empty responses
@@ -208,7 +206,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
 	const { method = 'GET', body, headers = {}, skipAuth = false, params } = options;
 
 	const url = buildUrl(endpoint, params);
-	
+
 	const requestHeaders: Record<string, string> = {
 		...headers
 	};
@@ -240,7 +238,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
 	// Handle 401 - attempt token refresh and retry
 	if (response.status === 401 && !skipAuth) {
 		const refreshed = await refreshAccessToken();
-		
+
 		if (refreshed) {
 			// Retry with new token
 			const newAccessToken = getAccessToken();
@@ -262,11 +260,9 @@ export const api = {
 	get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
 		apiRequest<T>(endpoint, { method: 'GET', params }),
 
-	post: <T>(endpoint: string, body?: unknown) =>
-		apiRequest<T>(endpoint, { method: 'POST', body }),
+	post: <T>(endpoint: string, body?: unknown) => apiRequest<T>(endpoint, { method: 'POST', body }),
 
-	put: <T>(endpoint: string, body?: unknown) =>
-		apiRequest<T>(endpoint, { method: 'PUT', body }),
+	put: <T>(endpoint: string, body?: unknown) => apiRequest<T>(endpoint, { method: 'PUT', body }),
 
 	delete: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
 		apiRequest<T>(endpoint, { method: 'DELETE', params })

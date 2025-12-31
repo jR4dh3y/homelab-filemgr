@@ -16,12 +16,7 @@
 		onFilesSelected?: (files: File[]) => void;
 	}
 
-	let {
-		disabled = false,
-		accept = '',
-		multiple = true,
-		onFilesSelected
-	}: Props = $props();
+	let { disabled = false, accept = '', multiple = true, onFilesSelected }: Props = $props();
 
 	let isDragOver = $state(false);
 	let fileInput: HTMLInputElement;
@@ -68,7 +63,7 @@
 	function handleFileChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const files = target.files;
-		
+
 		if (files && files.length > 0) {
 			const fileArray = Array.from(files);
 			onFilesSelected?.(fileArray);
@@ -101,7 +96,7 @@
 <div
 	class="dropzone"
 	class:drag-over={isDragOver}
-	class:disabled={disabled}
+	class:disabled
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
@@ -128,13 +123,21 @@
 		<div class="upload-icon">
 			{#if isDragOver}
 				<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-						d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12"
+					/>
 				</svg>
 			{:else}
 				<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-						d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+					/>
 				</svg>
 			{/if}
 		</div>

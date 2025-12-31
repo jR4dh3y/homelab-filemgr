@@ -14,7 +14,12 @@
 	} from '$lib/stores/files';
 	import { listRoots, listDirectory, search } from '$lib/api/files';
 	import type { SortField, SortDir } from '$lib/types/files';
-	import type { FileInfo } from '$lib/api/files';
+	import type {
+		FileInfo,
+		FileList as FileListType,
+		RootsResponse,
+		SearchResponse
+	} from '$lib/api/files';
 
 	let searchQuery = $state('');
 	let selectedPaths = $state(new Set<string>());
@@ -24,43 +29,35 @@
 	const segments = $derived($pathSegments);
 	const options = $derived($listOptionsStore);
 
-	// Query for mount points (roots)
-	const rootsQuery = createQuery({
+	// Query for mount points (roots) - wrap in accessor function for Svelte 5
+	const rootsQuery = createQuery<RootsResponse>(() => ({
 		queryKey: fileQueryKeys.roots(),
 		queryFn: () => listRoots()
-	});
+	}));
 
-	// Query for directory contents - use getter functions for reactivity
-	const directoryQuery = createQuery({
-		get queryKey() {
-			return fileQueryKeys.list(path, options);
-		},
+	// Query for directory contents - wrap in accessor function for Svelte 5
+	const directoryQuery = createQuery<FileListType>(() => ({
+		queryKey: fileQueryKeys.list(path, options),
 		queryFn: () => listDirectory(path, options),
-		get enabled() {
-			return path !== '';
-		}
-	});
+		enabled: path !== ''
+	}));
 
-	// Query for search results - use getter functions for reactivity
-	const searchQueryResult = createQuery({
-		get queryKey() {
-			return fileQueryKeys.search(path, searchQuery);
-		},
+	// Query for search results - wrap in accessor function for Svelte 5
+	const searchQueryResult = createQuery<SearchResponse>(() => ({
+		queryKey: fileQueryKeys.search(path, searchQuery),
 		queryFn: () => search(path, searchQuery),
-		get enabled() {
-			return searchQuery.length >= 2;
-		}
-	});
+		enabled: searchQuery.length >= 2
+	}));
 
-	// Derived state
-	const isLoading = $derived($directoryQuery.isLoading);
-	const isSearching = $derived($searchQueryResult.isLoading);
-	const fileList = $derived($directoryQuery.data ?? null);
-	const searchResults = $derived($searchQueryResult.data?.results ?? []);
+	// Derived state - access query results directly (no $ prefix needed in Svelte 5)
+	const isLoading = $derived(directoryQuery.isLoading);
+	const isSearching = $derived(searchQueryResult.isLoading);
+	const fileList = $derived(directoryQuery.data ?? null);
+	const searchResults = $derived(searchQueryResult.data?.results ?? []);
 
 	// Show roots when at root path
 	const showRoots = $derived(path === '');
-	const roots = $derived($rootsQuery.data?.roots ?? []);
+	const roots = $derived(rootsQuery.data?.roots ?? []);
 
 	function handleNavigate(newPath: string) {
 		pathStore.navigateTo(newPath);
@@ -104,20 +101,16 @@
 		<!-- Show mount points at root -->
 		<div class="roots-container">
 			<h1 class="roots-title">Mount Points</h1>
-			{#if $rootsQuery.isLoading}
+			{#if rootsQuery.isLoading}
 				<div class="loading">Loading mount points...</div>
-			{:else if $rootsQuery.error}
+			{:else if rootsQuery.error}
 				<div class="error">Failed to load mount points</div>
 			{:else if roots.length === 0}
 				<div class="empty">No mount points configured</div>
 			{:else}
 				<div class="roots-grid">
 					{#each roots as root (root.name)}
-						<button
-							type="button"
-							class="root-card"
-							onclick={() => handleNavigate(root.name)}
-						>
+						<button type="button" class="root-card" onclick={() => handleNavigate(root.name)}>
 							<span class="root-icon">📁</span>
 							<span class="root-name">{root.name}</span>
 							{#if root.readOnly}
@@ -131,7 +124,6 @@
 	{:else}
 		<!-- Show file browser -->
 		<FileBrowser
-			currentPath={path}
 			pathSegments={segments}
 			{fileList}
 			{isLoading}

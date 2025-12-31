@@ -1,3 +1,5 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/forms';
-@plugin '@tailwindcss/typography';
+
+/* Tailwind v4 plugins are configured via vite.config.ts */
+/* The @tailwindcss/forms and @tailwindcss/typography plugins 
+   are loaded through the @tailwindcss/vite plugin */

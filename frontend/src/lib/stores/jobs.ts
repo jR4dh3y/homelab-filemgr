@@ -13,9 +13,7 @@ import {
 	isJobTerminal,
 	type Job,
 	type JobState,
-	type JobType,
-	type CreateJobRequest,
-	type JobListResponse
+	type CreateJobRequest
 } from '$lib/api/jobs';
 
 /**
@@ -226,9 +224,8 @@ export const activeJobsCount = derived(
 /**
  * Derived store for whether there are any active jobs
  */
-export const hasActiveJobs = derived(
-	jobsStore,
-	($jobs) => Array.from($jobs.jobs.values()).some(isJobActive)
+export const hasActiveJobs = derived(jobsStore, ($jobs) =>
+	Array.from($jobs.jobs.values()).some(isJobActive)
 );
 
 /**
@@ -237,7 +234,11 @@ export const hasActiveJobs = derived(
 export const completedJobs = derived(jobsStore, ($jobs) =>
 	Array.from($jobs.jobs.values())
 		.filter((job) => job.state === 'completed')
-		.sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())
+		.sort(
+			(a, b) =>
+				new Date(b.completedAt || b.createdAt).getTime() -
+				new Date(a.completedAt || a.createdAt).getTime()
+		)
 );
 
 /**
@@ -246,7 +247,11 @@ export const completedJobs = derived(jobsStore, ($jobs) =>
 export const failedJobs = derived(jobsStore, ($jobs) =>
 	Array.from($jobs.jobs.values())
 		.filter((job) => job.state === 'failed')
-		.sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())
+		.sort(
+			(a, b) =>
+				new Date(b.completedAt || b.createdAt).getTime() -
+				new Date(a.completedAt || a.createdAt).getTime()
+		)
 );
 
 /**

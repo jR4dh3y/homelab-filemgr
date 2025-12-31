@@ -8,8 +8,7 @@ import {
 	setTokens,
 	clearTokens,
 	getRefreshToken,
-	isAuthenticated as checkAuth,
-	type TokenPair
+	isAuthenticated as checkAuth
 } from './client';
 
 /**
@@ -49,7 +48,7 @@ interface MessageResponse {
  */
 export async function login(username: string, password: string): Promise<LoginResponse> {
 	const body: LoginRequest = { username, password };
-	
+
 	const response = await apiRequest<LoginResponse>('/auth/login', {
 		method: 'POST',
 		body,
@@ -58,7 +57,7 @@ export async function login(username: string, password: string): Promise<LoginRe
 
 	// Store tokens on successful login
 	setTokens(response.accessToken, response.refreshToken);
-	
+
 	return response;
 }
 
@@ -68,7 +67,7 @@ export async function login(username: string, password: string): Promise<LoginRe
  */
 export async function refresh(): Promise<LoginResponse> {
 	const refreshToken = getRefreshToken();
-	
+
 	if (!refreshToken) {
 		throw new Error('No refresh token available');
 	}
@@ -81,7 +80,7 @@ export async function refresh(): Promise<LoginResponse> {
 
 	// Store new tokens
 	setTokens(response.accessToken, response.refreshToken);
-	
+
 	return response;
 }
 
@@ -91,7 +90,7 @@ export async function refresh(): Promise<LoginResponse> {
  */
 export async function logout(): Promise<void> {
 	const refreshToken = getRefreshToken();
-	
+
 	if (refreshToken) {
 		try {
 			const body: LogoutRequest = { refreshToken };

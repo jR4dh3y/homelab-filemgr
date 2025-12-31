@@ -25,11 +25,11 @@ export function formatFileSize(bytes: number, decimals: number = 2): string {
 	const unitIndex = Math.min(i, SIZE_UNITS.length - 1);
 
 	const value = bytes / Math.pow(k, unitIndex);
-	
+
 	// Remove trailing zeros for cleaner display
 	const formatted = value.toFixed(dm);
 	const trimmed = parseFloat(formatted).toString();
-	
+
 	return `${trimmed} ${SIZE_UNITS[unitIndex]}`;
 }
 
@@ -50,7 +50,7 @@ export function formatFileSizeFixed(bytes: number, decimals: number = 2): string
 	const unitIndex = Math.min(i, SIZE_UNITS.length - 1);
 
 	const value = bytes / Math.pow(k, unitIndex);
-	
+
 	return `${value.toFixed(dm)} ${SIZE_UNITS[unitIndex]}`;
 }
 
@@ -66,7 +66,7 @@ export function parseFileSize(sizeStr: string): number {
 	const value = parseFloat(match[1]);
 	const unit = match[2].toUpperCase();
 
-	const unitIndex = SIZE_UNITS.indexOf(unit as typeof SIZE_UNITS[number]);
+	const unitIndex = SIZE_UNITS.indexOf(unit as (typeof SIZE_UNITS)[number]);
 	if (unitIndex === -1) return NaN;
 
 	return value * Math.pow(1024, unitIndex);
@@ -88,14 +88,16 @@ export interface DateFormatOptions {
  * @param options - Formatting options
  * @returns Formatted date string
  */
-export function formatDate(
-	date: Date | string | number,
-	options: DateFormatOptions = {}
-): string {
-	const { includeTime = true, includeSeconds = false, relative = false, locale = 'en-US' } = options;
+export function formatDate(date: Date | string | number, options: DateFormatOptions = {}): string {
+	const {
+		includeTime = true,
+		includeSeconds = false,
+		relative = false,
+		locale = 'en-US'
+	} = options;
 
 	const dateObj = date instanceof Date ? date : new Date(date);
-	
+
 	if (isNaN(dateObj.getTime())) {
 		return 'Invalid date';
 	}
@@ -130,7 +132,7 @@ export function formatDate(
  */
 export function formatRelativeTime(date: Date | string | number): string {
 	const dateObj = date instanceof Date ? date : new Date(date);
-	
+
 	if (isNaN(dateObj.getTime())) {
 		return 'Invalid date';
 	}
@@ -181,7 +183,7 @@ export function formatRelativeTime(date: Date | string | number): string {
  */
 export function formatFileDate(date: Date | string | number): string {
 	const dateObj = date instanceof Date ? date : new Date(date);
-	
+
 	if (isNaN(dateObj.getTime())) {
 		return '-';
 	}
@@ -244,7 +246,11 @@ export function formatTransferSpeed(bytesPerSecond: number): string {
  * @param assumeDecimal - If true, assumes value is 0-1 range (default: auto-detect)
  * @returns Formatted percentage string like "75%"
  */
-export function formatPercentage(value: number, decimals: number = 0, assumeDecimal?: boolean): string {
+export function formatPercentage(
+	value: number,
+	decimals: number = 0,
+	assumeDecimal?: boolean
+): string {
 	if (!Number.isFinite(value)) return 'Invalid';
 
 	// Auto-detect if value is in 0-1 or 0-100 range
@@ -287,7 +293,7 @@ export function truncateFilename(filename: string, maxLength: number = 30): stri
  * @returns Human-readable file type description
  */
 export function getFileTypeDescription(filename: string): string {
-	const ext = filename.includes('.') 
+	const ext = filename.includes('.')
 		? filename.slice(filename.lastIndexOf('.') + 1).toLowerCase()
 		: filename.toLowerCase();
 

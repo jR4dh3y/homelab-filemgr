@@ -86,7 +86,10 @@ export async function calculateChecksum(file: File): Promise<string> {
 /**
  * Calculate SHA-256 checksum of file chunks (for large files)
  */
-export async function calculateChecksumStreaming(file: File, chunkSize: number = DEFAULT_CHUNK_SIZE): Promise<string> {
+export async function calculateChecksumStreaming(
+	file: File,
+	chunkSize: number = DEFAULT_CHUNK_SIZE
+): Promise<string> {
 	// For smaller files, use the simple method
 	if (file.size <= chunkSize * 2) {
 		return calculateChecksum(file);
@@ -101,14 +104,17 @@ export async function calculateChecksumStreaming(file: File, chunkSize: number =
 /**
  * Split a file into chunks
  */
-export function* splitFileIntoChunks(file: File, chunkSize: number = DEFAULT_CHUNK_SIZE): Generator<{ index: number; blob: Blob; isLast: boolean }> {
+export function* splitFileIntoChunks(
+	file: File,
+	chunkSize: number = DEFAULT_CHUNK_SIZE
+): Generator<{ index: number; blob: Blob; isLast: boolean }> {
 	const totalChunks = Math.ceil(file.size / chunkSize);
-	
+
 	for (let i = 0; i < totalChunks; i++) {
 		const start = i * chunkSize;
 		const end = Math.min(start + chunkSize, file.size);
 		const blob = file.slice(start, end);
-		
+
 		yield {
 			index: i,
 			blob,
@@ -179,16 +185,19 @@ async function uploadChunk(
 export async function getUploadStatus(uploadId: string): Promise<UploadStatusResponse | null> {
 	const token = getAccessToken();
 	const headers: Record<string, string> = {};
-	
+
 	if (token) {
 		headers['Authorization'] = `Bearer ${token}`;
 	}
 
 	try {
-		const response = await fetch(`${API_BASE_URL}/upload/status/?uploadId=${encodeURIComponent(uploadId)}`, {
-			method: 'GET',
-			headers
-		});
+		const response = await fetch(
+			`${API_BASE_URL}/upload/status/?uploadId=${encodeURIComponent(uploadId)}`,
+			{
+				method: 'GET',
+				headers
+			}
+		);
 
 		if (response.status === 404) {
 			return null;
@@ -216,7 +225,7 @@ export async function uploadFile(
 
 	const uploadId = generateUploadId();
 	const totalChunks = getChunkCount(file.size, chunkSize);
-	
+
 	// Initialize progress
 	const progress: UploadProgress = {
 		uploadId,
@@ -288,7 +297,6 @@ export async function uploadFile(
 		progress.percentage = 100;
 		reportProgress();
 		return { success: true, path: destinationPath };
-
 	} catch (error) {
 		progress.status = 'error';
 		progress.error = error instanceof Error ? error.message : 'Upload failed';
@@ -310,7 +318,7 @@ export async function resumeUpload(
 
 	// Get current upload status
 	const status = await getUploadStatus(uploadId);
-	
+
 	if (!status) {
 		// Session expired or not found, start fresh
 		return uploadFile(file, destinationPath, options);
@@ -328,7 +336,7 @@ export async function resumeUpload(
 		uploadId,
 		fileName: file.name,
 		totalSize: file.size,
-		uploadedSize: (status.receivedChunks * chunkSize),
+		uploadedSize: status.receivedChunks * chunkSize,
 		percentage: Math.round((status.receivedChunks / totalChunks) * 100),
 		currentChunk: status.receivedChunks,
 		totalChunks,
@@ -399,7 +407,6 @@ export async function resumeUpload(
 		progress.percentage = 100;
 		reportProgress();
 		return { success: true, path: destinationPath };
-
 	} catch (error) {
 		progress.status = 'error';
 		progress.error = error instanceof Error ? error.message : 'Upload failed';
@@ -412,7 +419,10 @@ export async function resumeUpload(
  * Upload manager for handling multiple concurrent uploads
  */
 export class UploadManager {
-	private uploads: Map<string, { file: File; path: string; progress: UploadProgress; abortController: AbortController }> = new Map();
+	private uploads: Map<
+		string,
+		{ file: File; path: string; progress: UploadProgress; abortController: AbortController }
+	> = new Map();
 	private onProgressCallback?: (uploads: UploadProgress[]) => void;
 
 	constructor(onProgress?: (uploads: UploadProgress[]) => void) {
@@ -422,7 +432,11 @@ export class UploadManager {
 	/**
 	 * Add a file to the upload queue and start uploading
 	 */
-	async addUpload(file: File, destinationPath: string, options: Omit<UploadOptions, 'signal' | 'onProgress'> = {}): Promise<string> {
+	async addUpload(
+		file: File,
+		destinationPath: string,
+		options: Omit<UploadOptions, 'signal' | 'onProgress'> = {}
+	): Promise<string> {
 		const uploadId = generateUploadId();
 		const abortController = new AbortController();
 
@@ -449,7 +463,10 @@ export class UploadManager {
 	/**
 	 * Start or resume an upload
 	 */
-	private async startUpload(uploadId: string, options: Omit<UploadOptions, 'signal' | 'onProgress'> = {}): Promise<void> {
+	private async startUpload(
+		uploadId: string,
+		options: Omit<UploadOptions, 'signal' | 'onProgress'> = {}
+	): Promise<void> {
 		const upload = this.uploads.get(uploadId);
 		if (!upload) return;
 

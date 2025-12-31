@@ -8,9 +8,7 @@ import {
 	login as apiLogin,
 	logout as apiLogout,
 	refresh as apiRefresh,
-	isAuthenticated as checkAuth,
-	getAccessToken,
-	clearTokens
+	isAuthenticated as checkAuth
 } from '$lib/api/auth';
 
 /**

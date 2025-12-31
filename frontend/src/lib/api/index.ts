@@ -18,14 +18,7 @@ export {
 } from './client';
 
 // Auth API
-export {
-	authApi,
-	login,
-	refresh,
-	logout,
-	type LoginRequest,
-	type LoginResponse
-} from './auth';
+export { authApi, login, refresh, logout, type LoginRequest, type LoginResponse } from './auth';
 
 // Files API
 export {

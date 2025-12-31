@@ -28,11 +28,14 @@
 		onClear
 	}: Props = $props();
 
-	let inputValue = $state('');
+	// Use local state that syncs with external value
+	let inputValue = $state(value);
 
-	// Sync external value changes (including initial value)
+	// Update local state when external value changes
 	$effect(() => {
-		inputValue = value;
+		if (value !== inputValue) {
+			inputValue = value;
+		}
 	});
 
 	/**
@@ -92,13 +95,7 @@
 					viewBox="0 0 24 24"
 					aria-hidden="true"
 				>
-					<circle
-						class="opacity-25"
-						cx="12"
-						cy="12"
-						r="10"
-						stroke="currentColor"
-						stroke-width="4"
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
 					></circle>
 					<path
 						class="opacity-75"
@@ -133,7 +130,7 @@
 			oninput={handleInput}
 			onkeydown={handleKeydown}
 			disabled={isLoading}
-			class="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-10 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+			class="block w-full rounded-lg border border-gray-300 bg-white py-2 pr-10 pl-10 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-blue-400 dark:focus:ring-blue-400"
 			aria-label="Search"
 		/>
 
