@@ -11,6 +11,21 @@
 #   - Set up HTTPS with a reverse proxy (nginx, traefik, caddy)
 
 services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: filemanager-nginx
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - filemanager-net
+
   # Backend API Server
   backend:
     build:
@@ -72,8 +87,8 @@ services:
       dockerfile: Dockerfile
     container_name: filemanager-frontend
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
       - APP_API_URL=http://backend:8080
