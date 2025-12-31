@@ -106,15 +106,15 @@
 		align-items: center;
 		justify-content: center;
 		padding: 1rem;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: #141414;
 	}
 
 	.login-card {
 		width: 100%;
 		max-width: 400px;
-		background: white;
-		border-radius: 1rem;
-		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+		background: #1e1e1e;
+		border: 1px solid #2a2a2a;
+		border-radius: 8px;
 		padding: 2rem;
 	}
 
@@ -131,14 +131,14 @@
 
 	.login-title {
 		font-size: 1.5rem;
-		font-weight: 700;
-		color: #111827;
+		font-weight: 600;
+		color: #e0e0e0;
 		margin: 0 0 0.5rem;
 	}
 
 	.login-subtitle {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: #888;
 		margin: 0;
 	}
 
@@ -153,10 +153,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.75rem 1rem;
-		background: #fef2f2;
-		border: 1px solid #fecaca;
-		border-radius: 0.5rem;
-		color: #dc2626;
+		background: #3d1f1f;
+		border: 1px solid #5c2a2a;
+		border-radius: 4px;
+		color: #f87171;
 		font-size: 0.875rem;
 	}
 
@@ -175,14 +175,14 @@
 		background: transparent;
 		border: none;
 		font-size: 1.25rem;
-		color: #dc2626;
+		color: #f87171;
 		cursor: pointer;
-		border-radius: 0.25rem;
+		border-radius: 4px;
 		transition: background-color 0.15s;
 	}
 
 	.error-dismiss:hover {
-		background: #fee2e2;
+		background: #5c2a2a;
 	}
 
 	.form-group {
@@ -194,34 +194,32 @@
 	.form-label {
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: #374151;
+		color: #aaa;
 	}
 
 	.form-input {
 		padding: 0.75rem 1rem;
 		font-size: 1rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.5rem;
-		background: white;
-		color: #111827;
-		transition:
-			border-color 0.15s,
-			box-shadow 0.15s;
+		border: 1px solid #333;
+		border-radius: 4px;
+		background: #252525;
+		color: #e0e0e0;
+		transition: border-color 0.15s;
 	}
 
 	.form-input:focus {
 		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		border-color: #4a9eff;
 	}
 
 	.form-input:disabled {
-		background: #f9fafb;
+		background: #1a1a1a;
 		cursor: not-allowed;
+		color: #666;
 	}
 
 	.form-input::placeholder {
-		color: #9ca3af;
+		color: #555;
 	}
 
 	.submit-btn {
@@ -233,26 +231,23 @@
 		font-size: 1rem;
 		font-weight: 600;
 		color: white;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: #2d4a6f;
 		border: none;
-		border-radius: 0.5rem;
+		border-radius: 4px;
 		cursor: pointer;
-		transition:
-			opacity 0.15s,
-			transform 0.15s;
+		transition: background-color 0.15s;
 	}
 
 	.submit-btn:hover:not(:disabled) {
-		opacity: 0.9;
-		transform: translateY(-1px);
+		background: #345580;
 	}
 
 	.submit-btn:active:not(:disabled) {
-		transform: translateY(0);
+		background: #2a4060;
 	}
 
 	.submit-btn:disabled {
-		opacity: 0.6;
+		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
@@ -268,62 +263,6 @@
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
-		}
-	}
-
-	/* Dark mode */
-	@media (prefers-color-scheme: dark) {
-		.login-container {
-			background: linear-gradient(135deg, #1e3a5f 0%, #312e81 100%);
-		}
-
-		.login-card {
-			background: #1f2937;
-		}
-
-		.login-title {
-			color: #f9fafb;
-		}
-
-		.login-subtitle {
-			color: #9ca3af;
-		}
-
-		.error-message {
-			background: #450a0a;
-			border-color: #7f1d1d;
-			color: #fca5a5;
-		}
-
-		.error-dismiss {
-			color: #fca5a5;
-		}
-
-		.error-dismiss:hover {
-			background: #7f1d1d;
-		}
-
-		.form-label {
-			color: #d1d5db;
-		}
-
-		.form-input {
-			background: #374151;
-			border-color: #4b5563;
-			color: #f9fafb;
-		}
-
-		.form-input:focus {
-			border-color: #60a5fa;
-			box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-		}
-
-		.form-input:disabled {
-			background: #1f2937;
-		}
-
-		.form-input::placeholder {
-			color: #6b7280;
 		}
 	}
 </style>

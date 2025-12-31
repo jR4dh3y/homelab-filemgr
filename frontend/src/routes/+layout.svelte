@@ -4,7 +4,7 @@
 	import { authStore, isAuthenticated } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 
 	let { children } = $props();
@@ -23,6 +23,10 @@
 	// Public routes that don't require authentication
 	const publicRoutes = ['/login'];
 
+	// Check if we're on the browse page (full-screen file manager)
+	const isBrowsePage = $derived(page.url.pathname.startsWith('/browse'));
+	const isLoginPage = $derived(page.url.pathname.startsWith('/login'));
+
 	onMount(() => {
 		authStore.initialize();
 		initialized = true;
@@ -32,7 +36,7 @@
 	$effect(() => {
 		if (!initialized) return;
 
-		const currentPath = $page.url.pathname;
+		const currentPath = page.url.pathname;
 		const isPublicRoute = publicRoutes.some((route) => currentPath.startsWith(route));
 
 		if (!$isAuthenticated && !isPublicRoute) {
@@ -55,9 +59,12 @@
 		<div class="loading-screen">
 			<div class="loading-spinner"></div>
 		</div>
+	{:else if isBrowsePage}
+		<!-- Full-screen file manager mode -->
+		{@render children()}
 	{:else}
 		<div class="app-container">
-			{#if $isAuthenticated && !$page.url.pathname.startsWith('/login')}
+			{#if $isAuthenticated && !isLoginPage}
 				<header class="app-header">
 					<div class="header-content">
 						<a href="/browse" class="app-logo">
@@ -72,7 +79,7 @@
 			{/if}
 			<main
 				class="app-main"
-				class:with-header={$isAuthenticated && !$page.url.pathname.startsWith('/login')}
+				class:with-header={$isAuthenticated && !isLoginPage}
 			>
 				{@render children()}
 			</main>
@@ -86,14 +93,14 @@
 		align-items: center;
 		justify-content: center;
 		min-height: 100vh;
-		background: #f9fafb;
+		background: #1e1e1e;
 	}
 
 	.loading-spinner {
 		width: 40px;
 		height: 40px;
-		border: 3px solid #e5e7eb;
-		border-top-color: #3b82f6;
+		border: 3px solid #333;
+		border-top-color: #4a9eff;
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
@@ -108,12 +115,12 @@
 		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
-		background: #f3f4f6;
+		background: #1e1e1e;
 	}
 
 	.app-header {
-		background: white;
-		border-bottom: 1px solid #e5e7eb;
+		background: #1a1a1a;
+		border-bottom: 1px solid #2a2a2a;
 		padding: 0 1rem;
 		position: sticky;
 		top: 0;
@@ -134,13 +141,13 @@
 		align-items: center;
 		gap: 0.5rem;
 		text-decoration: none;
-		color: #111827;
+		color: #ccc;
 		font-weight: 600;
 		font-size: 1.125rem;
 	}
 
 	.app-logo:hover {
-		color: #3b82f6;
+		color: #4a9eff;
 	}
 
 	.logo-icon {
@@ -157,18 +164,18 @@
 		padding: 0.5rem 1rem;
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: #6b7280;
+		color: #888;
 		background: transparent;
-		border: 1px solid #e5e7eb;
+		border: 1px solid #333;
 		border-radius: 0.375rem;
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 
 	.logout-btn:hover {
-		color: #111827;
-		border-color: #d1d5db;
-		background: #f9fafb;
+		color: #ccc;
+		border-color: #444;
+		background: #252525;
 	}
 
 	.app-main {
@@ -182,45 +189,5 @@
 		max-width: 1400px;
 		width: 100%;
 		margin: 0 auto;
-	}
-
-	/* Dark mode */
-	@media (prefers-color-scheme: dark) {
-		.loading-screen {
-			background: #111827;
-		}
-
-		.loading-spinner {
-			border-color: #374151;
-			border-top-color: #60a5fa;
-		}
-
-		.app-container {
-			background: #0f172a;
-		}
-
-		.app-header {
-			background: #1f2937;
-			border-bottom-color: #374151;
-		}
-
-		.app-logo {
-			color: #f9fafb;
-		}
-
-		.app-logo:hover {
-			color: #60a5fa;
-		}
-
-		.logout-btn {
-			color: #9ca3af;
-			border-color: #374151;
-		}
-
-		.logout-btn:hover {
-			color: #f9fafb;
-			border-color: #4b5563;
-			background: #374151;
-		}
 	}
 </style>
