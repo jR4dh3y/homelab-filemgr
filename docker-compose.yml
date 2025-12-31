@@ -30,7 +30,7 @@ services:
       # Mount points matching config.yaml
       - /media/devmon:/media/devmon          # Attached drives
       - /:/host_root                          # Root filesystem
-      - ${HOME:-/home/radhey}:/home/radhey    # Home directory
+      - ${HOME_PATH:-/home/user}:/home/user  # Home directory
       
       # Temp directory for uploads
       - filemanager-temp:/tmp/filemanager

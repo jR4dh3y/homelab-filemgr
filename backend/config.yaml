@@ -23,5 +23,5 @@ mount_points:
     read_only: false
 
   - name: "home"
-    path: "/home/radhey"
+    path: "/home/user"
     read_only: false

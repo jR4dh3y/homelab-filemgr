@@ -45,7 +45,7 @@ services:
       - ./backend/config.yaml:/app/config.yaml:ro
       - /media/devmon:/media/devmon
       - /:/host_root
-      - ${HOME:-/home/radhey}:/home/radhey
+      - ${HOME_PATH:-/home/user}:/home/user
       - filemanager-temp:/tmp/filemanager
     privileged: false
     cap_add:
