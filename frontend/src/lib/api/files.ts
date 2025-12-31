@@ -215,7 +215,7 @@ export function getPreviewUrl(path: string): string {
 	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 	// Don't double-encode the path - just encode special characters
 	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
-	const baseUrl = `/api/v1/preview/${encodedPath}`;
+	const baseUrl = `/api/v1/stream/preview/${encodedPath}`;
 	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
 }
 
@@ -225,7 +225,7 @@ export function getPreviewUrl(path: string): string {
 export function getDownloadUrl(path: string): string {
 	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
-	const baseUrl = `/api/v1/download/${encodedPath}`;
+	const baseUrl = `/api/v1/stream/download/${encodedPath}`;
 	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
 }
 
