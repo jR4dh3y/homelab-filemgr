@@ -12,15 +12,16 @@ max_upload_mb: 10240  # 10GB max upload size
 chunk_size_mb: 5      # 5MB chunk size for uploads
 
 # Mount points - directories accessible through the file manager
+# These appear as pinned folders in the UI
 mount_points:
-  - name: "media"
-    path: "/data/media"
+  - name: "drives"
+    path: "/media/devmon"
     read_only: false
 
-  - name: "documents"
-    path: "/home/user/documents"
+  - name: "root"
+    path: "/host_root"
     read_only: false
 
-  - name: "backups"
-    path: "/mnt/backups"
-    read_only: true  # Read-only mount for backups
+  - name: "home"
+    path: "/home/radhey"
+    read_only: false

@@ -43,9 +43,9 @@ services:
       - CONFIG_PATH=/app/config.yaml
     volumes:
       - ./backend/config.yaml:/app/config.yaml:ro
-      - ${MEDIA_PATH:-/data/media}:/data/media
-      - ${DOCUMENTS_PATH:-/home/user/documents}:/home/user/documents
-      - ${BACKUPS_PATH:-/mnt/backups}:/mnt/backups:ro
+      - /media/devmon:/media/devmon
+      - /:/host_root
+      - ${HOME:-/home/radhey}:/home/radhey
       - filemanager-temp:/tmp/filemanager
     privileged: false
     cap_add:
@@ -80,7 +80,6 @@ services:
       - "3000"
     environment:
       - NODE_ENV=production
-      - PUBLIC_API_URL=/api
       - ORIGIN=${ORIGIN:-https://files.example.com}
     depends_on:
       backend:

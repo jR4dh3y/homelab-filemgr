@@ -1,8 +1,4 @@
-﻿<p align="center">
-  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/folder-open.svg" width="80" height="80" alt="Homelab File Manager">
-</p>
-
-<h1 align="center">Homelab File Manager</h1>
+﻿<h1 align="center">Homelab File Manager</h1>
 
 <p align="center">
   <strong>A modern, self-hosted file manager for your homelab</strong>
@@ -23,7 +19,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
 </p>
 
----
+
 
 ## Features
 

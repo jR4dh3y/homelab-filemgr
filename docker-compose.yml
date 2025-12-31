@@ -24,15 +24,13 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
     volumes:
-      # Configuration file (optional - can use default)
+      # Configuration file
       - ./backend/config.yaml:/app/config.yaml:ro
       
-      # Mount your actual filesystem directories here
-      # Format: host_path:container_path
-      # These paths should match what's configured in config.yaml
-      - ${MEDIA_PATH:-/data/media}:/data/media
-      - ${DOCUMENTS_PATH:-/home/user/documents}:/home/user/documents
-      - ${BACKUPS_PATH:-/mnt/backups}:/mnt/backups:ro  # Read-only for backups
+      # Mount points matching config.yaml
+      - /media/devmon:/media/devmon          # Attached drives
+      - /:/host_root                          # Root filesystem
+      - ${HOME:-/home/radhey}:/home/radhey    # Home directory
       
       # Temp directory for uploads
       - filemanager-temp:/tmp/filemanager
@@ -78,7 +76,7 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - PUBLIC_API_URL=http://backend:8080
+      - APP_API_URL=http://backend:8080
       - ORIGIN=${ORIGIN:-http://localhost:3000}
     depends_on:
       backend:
