@@ -3,6 +3,19 @@
 	 * Sidebar component - navigation panel with storage, places, favorites
 	 */
 	import type { MountPoint } from '$lib/api/files';
+	import {
+		ChevronDown,
+		HardDrive,
+		Server,
+		Monitor,
+		Download,
+		FileText,
+		Music,
+		Image,
+		Video,
+		Star,
+		Folder
+	} from 'lucide-svelte';
 
 	interface Props {
 		roots?: MountPoint[];
@@ -14,13 +27,13 @@
 
 	// Quick access places
 	const places = [
-		{ name: 'This PC', path: '', icon: '💻' },
-		{ name: 'Desktop', path: 'desktop', icon: '🖥️' },
-		{ name: 'Downloads', path: 'downloads', icon: '⬇️' },
-		{ name: 'Documents', path: 'documents', icon: '📄' },
-		{ name: 'Music', path: 'music', icon: '🎵' },
-		{ name: 'Pictures', path: 'pictures', icon: '🖼️' },
-		{ name: 'Videos', path: 'videos', icon: '🎬' }
+		{ name: 'This Server', path: '', icon: Server },
+		{ name: 'Desktop', path: 'desktop', icon: Monitor },
+		{ name: 'Downloads', path: 'downloads', icon: Download },
+		{ name: 'Documents', path: 'documents', icon: FileText },
+		{ name: 'Music', path: 'music', icon: Music },
+		{ name: 'Pictures', path: 'pictures', icon: Image },
+		{ name: 'Videos', path: 'videos', icon: Video }
 	];
 
 	// Favorites (could be stored in localStorage later)
@@ -42,14 +55,6 @@
 </script>
 
 <aside class="sidebar">
-	<!-- Search/Filter -->
-	<div class="sidebar-search">
-		<svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
-			<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
-		</svg>
-		<input type="text" placeholder="Filter / New..." class="search-input" />
-	</div>
-
 	<!-- Storage Section -->
 	<div class="sidebar-section">
 		<button 
@@ -57,9 +62,7 @@
 			class="section-header"
 			onclick={() => storageCollapsed = !storageCollapsed}
 		>
-			<svg class="collapse-icon" class:collapsed={storageCollapsed} viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-			</svg>
+			<ChevronDown size={14} class="collapse-icon {storageCollapsed ? 'collapsed' : ''}" />
 			<span>Storage</span>
 		</button>
 		{#if !storageCollapsed}
@@ -71,7 +74,7 @@
 						class:active={isActive(root.name)}
 						onclick={() => handleNavigate(root.name)}
 					>
-						<span class="nav-icon">💾</span>
+						<HardDrive size={16} class="nav-icon" />
 						<span class="nav-label">{root.name}</span>
 						{#if root.readOnly}
 							<span class="badge">RO</span>
@@ -89,9 +92,7 @@
 			class="section-header"
 			onclick={() => placesCollapsed = !placesCollapsed}
 		>
-			<svg class="collapse-icon" class:collapsed={placesCollapsed} viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-			</svg>
+			<ChevronDown size={14} class="collapse-icon {placesCollapsed ? 'collapsed' : ''}" />
 			<span>Places</span>
 		</button>
 		{#if !placesCollapsed}
@@ -103,7 +104,7 @@
 						class:active={isActive(place.path)}
 						onclick={() => handleNavigate(place.path)}
 					>
-						<span class="nav-icon">{place.icon}</span>
+						<place.icon size={16} class="nav-icon" />
 						<span class="nav-label">{place.name}</span>
 					</button>
 				{/each}
@@ -118,9 +119,7 @@
 			class="section-header"
 			onclick={() => favoritesCollapsed = !favoritesCollapsed}
 		>
-			<svg class="collapse-icon" class:collapsed={favoritesCollapsed} viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-			</svg>
+			<ChevronDown size={14} class="collapse-icon {favoritesCollapsed ? 'collapsed' : ''}" />
 			<span>Favorites</span>
 		</button>
 		{#if !favoritesCollapsed}
@@ -135,7 +134,7 @@
 							class:active={isActive(fav.path)}
 							onclick={() => handleNavigate(fav.path)}
 						>
-							<span class="nav-icon">⭐</span>
+							<Star size={16} class="nav-icon" />
 							<span class="nav-label">{fav.name}</span>
 						</button>
 					{/each}
@@ -157,34 +156,6 @@
 		overflow-x: hidden;
 	}
 
-	.sidebar-search {
-		padding: 8px 12px;
-		border-bottom: 1px solid #2a2a2a;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.search-icon {
-		width: 14px;
-		height: 14px;
-		color: #666;
-		flex-shrink: 0;
-	}
-
-	.search-input {
-		flex: 1;
-		background: transparent;
-		border: none;
-		color: #888;
-		font-size: 12px;
-		outline: none;
-	}
-
-	.search-input::placeholder {
-		color: #555;
-	}
-
 	.sidebar-section {
 		border-bottom: 1px solid #2a2a2a;
 	}
@@ -194,7 +165,7 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		padding: 8px 12px;
+		padding: 10px 12px;
 		background: transparent;
 		border: none;
 		color: #888;
@@ -210,13 +181,12 @@
 		color: #aaa;
 	}
 
-	.collapse-icon {
-		width: 14px;
-		height: 14px;
+	:global(.collapse-icon) {
 		transition: transform 0.15s ease;
+		flex-shrink: 0;
 	}
 
-	.collapse-icon.collapsed {
+	:global(.collapse-icon.collapsed) {
 		transform: rotate(-90deg);
 	}
 
@@ -228,8 +198,8 @@
 		width: 100%;
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 6px 12px 6px 24px;
+		gap: 10px;
+		padding: 7px 12px 7px 20px;
 		background: transparent;
 		border: none;
 		color: #ccc;
@@ -248,11 +218,13 @@
 		color: #fff;
 	}
 
-	.nav-icon {
-		font-size: 14px;
-		width: 18px;
-		text-align: center;
+	:global(.nav-icon) {
 		flex-shrink: 0;
+		opacity: 0.8;
+	}
+
+	.nav-item.active :global(.nav-icon) {
+		opacity: 1;
 	}
 
 	.nav-label {
@@ -272,7 +244,7 @@
 	}
 
 	.empty-favorites {
-		padding: 8px 24px;
+		padding: 8px 20px;
 		color: #555;
 		font-size: 12px;
 		font-style: italic;

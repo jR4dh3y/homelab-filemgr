@@ -45,6 +45,26 @@ export interface RootsResponse {
 }
 
 /**
+ * Drive statistics
+ */
+export interface DriveStats {
+	name: string;
+	path: string;
+	totalBytes: number;
+	freeBytes: number;
+	usedBytes: number;
+	usedPct: number;
+	readOnly: boolean;
+}
+
+/**
+ * Drive stats response
+ */
+export interface DriveStatsResponse {
+	drives: DriveStats[];
+}
+
+/**
  * Options for listing directory contents
  */
 export interface ListOptions {
@@ -92,6 +112,14 @@ interface MessageResponse {
  */
 export async function listRoots(): Promise<RootsResponse> {
 	return api.get<RootsResponse>('/files');
+}
+
+/**
+ * Get drive statistics for all mount points
+ * GET /api/v1/files/stats
+ */
+export async function getDriveStats(): Promise<DriveStatsResponse> {
+	return api.get<DriveStatsResponse>('/files/stats');
 }
 
 /**
@@ -169,6 +197,7 @@ export async function search(path: string, query: string): Promise<SearchRespons
  */
 export const filesApi = {
 	listRoots,
+	getDriveStats,
 	getPath,
 	listDirectory,
 	getFileInfo,

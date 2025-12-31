@@ -2,6 +2,7 @@
 	/**
 	 * Toolbar component - navigation buttons and path bar
 	 */
+	import { ChevronLeft, ChevronRight, ChevronUp, Home, RefreshCw } from 'lucide-svelte';
 
 	interface Props {
 		pathSegments?: string[];
@@ -27,10 +28,6 @@
 		onRefresh
 	}: Props = $props();
 
-	const currentPathDisplay = $derived(
-		pathSegments.length > 0 ? pathSegments.join(' / ') : 'This PC'
-	);
-
 	function buildPath(index: number): string {
 		return pathSegments.slice(0, index + 1).join('/');
 	}
@@ -54,9 +51,7 @@
 			onclick={onBack}
 			title="Back"
 		>
-			<svg viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-			</svg>
+			<ChevronLeft size={18} />
 		</button>
 		<button
 			type="button"
@@ -65,9 +60,7 @@
 			onclick={onForward}
 			title="Forward"
 		>
-			<svg viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-			</svg>
+			<ChevronRight size={18} />
 		</button>
 		<button
 			type="button"
@@ -76,22 +69,18 @@
 			onclick={onUp}
 			title="Up"
 		>
-			<svg viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
-			</svg>
+			<ChevronUp size={18} />
 		</button>
 	</div>
 
 	<!-- Path bar -->
 	<div class="path-bar">
 		<button type="button" class="path-icon" onclick={handleRootClick} title="Go to root">
-			<svg viewBox="0 0 20 20" fill="currentColor">
-				<path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-			</svg>
+			<Home size={14} />
 		</button>
 		<div class="path-segments">
 			{#if pathSegments.length === 0}
-				<span class="path-segment current">This PC</span>
+				<span class="path-segment current">This Server</span>
 			{:else}
 				{#each pathSegments as segment, index (index)}
 					{#if index > 0}
@@ -116,9 +105,7 @@
 	<!-- Action buttons -->
 	<div class="action-buttons">
 		<button type="button" class="action-btn" onclick={onRefresh} title="Refresh">
-			<svg viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-			</svg>
+			<RefreshCw size={16} />
 		</button>
 	</div>
 </div>
@@ -162,11 +149,6 @@
 		cursor: not-allowed;
 	}
 
-	.nav-btn svg {
-		width: 16px;
-		height: 16px;
-	}
-
 	.path-bar {
 		flex: 1;
 		display: flex;
@@ -194,11 +176,6 @@
 
 	.path-icon:hover {
 		color: #ccc;
-	}
-
-	.path-icon svg {
-		width: 14px;
-		height: 14px;
 	}
 
 	.path-segments {
@@ -259,10 +236,5 @@
 	.action-btn:hover {
 		background: #333;
 		color: #ccc;
-	}
-
-	.action-btn svg {
-		width: 16px;
-		height: 16px;
 	}
 </style>

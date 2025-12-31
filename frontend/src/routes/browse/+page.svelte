@@ -8,6 +8,7 @@
 	import Toolbar from '$lib/components/Toolbar.svelte';
 	import FileList from '$lib/components/FileList.svelte';
 	import StatusBar from '$lib/components/StatusBar.svelte';
+	import DriveCard from '$lib/components/DriveCard.svelte';
 	import {
 		pathStore,
 		currentPath,
@@ -15,13 +16,14 @@
 		listOptionsStore,
 		fileQueryKeys
 	} from '$lib/stores/files';
-	import { listRoots, listDirectory, search } from '$lib/api/files';
+	import { listRoots, listDirectory, search, getDriveStats } from '$lib/api/files';
 	import type { SortField, SortDir } from '$lib/types/files';
 	import type {
 		FileInfo,
 		FileList as FileListType,
 		RootsResponse,
-		SearchResponse
+		SearchResponse,
+		DriveStatsResponse
 	} from '$lib/api/files';
 
 	let searchQuery = $state('');
@@ -43,6 +45,13 @@
 		queryFn: () => listRoots()
 	}));
 
+	// Query for drive stats
+	const driveStatsQuery = createQuery<DriveStatsResponse>(() => ({
+		queryKey: ['files', 'stats'],
+		queryFn: () => getDriveStats(),
+		enabled: path === ''
+	}));
+
 	// Query for directory contents
 	const directoryQuery = createQuery<FileListType>(() => ({
 		queryKey: fileQueryKeys.list(path, options),
@@ -62,27 +71,20 @@
 	const fileList = $derived(directoryQuery.data ?? null);
 	const searchResults = $derived(searchQueryResult.data?.results ?? []);
 	const roots = $derived(rootsQuery.data?.roots ?? []);
+	const driveStats = $derived(driveStatsQuery.data?.drives ?? []);
 
-	// Display items - show roots at root path, otherwise show directory contents
+	// Check if we're at root (This Server view)
+	const isAtRoot = $derived(path === '');
+
+	// Display items for file list (when not at root)
 	const displayItems = $derived.by(() => {
 		if (searchQuery && searchResults.length > 0) {
 			return searchResults;
 		}
-		if (path === '') {
-			// At root, show mount points as folders
-			return roots.map(root => ({
-				name: root.name,
-				path: root.name,
-				size: 0,
-				isDir: true,
-				modTime: new Date().toISOString(),
-				permissions: root.readOnly ? 'r--' : 'rw-'
-			})) as FileInfo[];
-		}
 		return fileList?.items ?? [];
 	});
 
-	const itemCount = $derived(displayItems.length);
+	const itemCount = $derived(isAtRoot ? driveStats.length : displayItems.length);
 	const selectedCount = $derived(selectedPaths.size);
 
 	// Navigation helpers
@@ -126,7 +128,11 @@
 	}
 
 	function handleRefresh() {
-		directoryQuery.refetch();
+		if (isAtRoot) {
+			driveStatsQuery.refetch();
+		} else {
+			directoryQuery.refetch();
+		}
 	}
 
 	function handleFileClick(file: FileInfo) {
@@ -179,18 +185,39 @@
 			onRefresh={handleRefresh}
 		/>
 
-		<!-- File list -->
+		<!-- File list or Drive cards -->
 		<div class="content-area">
-			<FileList
-				items={displayItems}
-				sortBy={options.sortBy}
-				sortDir={options.sortDir}
-				{selectedPaths}
-				{isLoading}
-				onItemClick={handleFileClick}
-				onSortChange={handleSortChange}
-				onSelectionChange={handleSelectionChange}
-			/>
+			{#if isAtRoot}
+				<!-- This Server view - show drive cards -->
+				<div class="drives-container">
+					<h2 class="drives-title">Storage Devices</h2>
+					{#if driveStatsQuery.isLoading}
+						<div class="loading-message">Loading drives...</div>
+					{:else if driveStats.length === 0}
+						<div class="empty-message">No storage devices configured</div>
+					{:else}
+						<div class="drives-grid">
+							{#each driveStats as drive (drive.name)}
+								<DriveCard 
+									{drive} 
+									onClick={() => handleNavigate(drive.name)} 
+								/>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<FileList
+					items={displayItems}
+					sortBy={options.sortBy}
+					sortDir={options.sortDir}
+					{selectedPaths}
+					{isLoading}
+					onItemClick={handleFileClick}
+					onSortChange={handleSortChange}
+					onSelectionChange={handleSelectionChange}
+				/>
+			{/if}
 		</div>
 
 		<!-- Status bar -->
@@ -221,6 +248,30 @@
 
 	.content-area {
 		flex: 1;
-		overflow: hidden;
+		overflow: auto;
+	}
+
+	.drives-container {
+		padding: 24px;
+	}
+
+	.drives-title {
+		font-size: 18px;
+		font-weight: 500;
+		color: #e0e0e0;
+		margin: 0 0 20px 0;
+	}
+
+	.drives-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 16px;
+	}
+
+	.loading-message,
+	.empty-message {
+		color: #888;
+		font-size: 14px;
+		padding: 20px 0;
 	}
 </style>

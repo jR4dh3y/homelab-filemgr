@@ -8,6 +8,20 @@
 	import type { SortField, SortDir } from '$lib/types/files';
 	import { formatFileSize, formatFileDate, getFileTypeDescription } from '$lib/utils/format';
 	import { SvelteSet } from 'svelte/reactivity';
+	import {
+		Folder,
+		File,
+		FileImage,
+		FileVideo,
+		FileAudio,
+		FileText,
+		FileCode,
+		FileArchive,
+		FileSpreadsheet,
+		Globe,
+		Palette,
+		FileJson
+	} from 'lucide-svelte';
 
 	let {
 		items = [],
@@ -75,55 +89,35 @@
 		return sortDir === 'asc' ? '▲' : '▼';
 	}
 
-	function getFileIcon(item: FileInfo): string {
-		if (item.isDir) return '📁';
+	function getFileIcon(item: FileInfo) {
+		if (item.isDir) return Folder;
 		const ext = item.name.includes('.')
 			? item.name.slice(item.name.lastIndexOf('.') + 1).toLowerCase()
 			: '';
-		const iconMap: Record<string, string> = {
-			jpg: '🖼️',
-			jpeg: '🖼️',
-			png: '🖼️',
-			gif: '🖼️',
-			svg: '🖼️',
-			webp: '🖼️',
-			mp4: '🎬',
-			mkv: '🎬',
-			avi: '🎬',
-			mov: '🎬',
-			webm: '🎬',
-			mp3: '🎵',
-			wav: '🎵',
-			flac: '🎵',
-			aac: '🎵',
-			ogg: '🎵',
-			pdf: '📄',
-			doc: '📝',
-			docx: '📝',
-			txt: '📝',
-			md: '📝',
-			xls: '📊',
-			xlsx: '📊',
-			csv: '📊',
-			zip: '📦',
-			rar: '📦',
-			'7z': '📦',
-			tar: '📦',
-			gz: '📦',
-			js: '💻',
-			ts: '💻',
-			py: '💻',
-			go: '💻',
-			rs: '💻',
-			java: '💻',
-			html: '🌐',
-			css: '🎨',
-			json: '📋',
-			xml: '📋',
-			yaml: '📋',
-			yml: '📋'
-		};
-		return iconMap[ext] || '📄';
+		
+		const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'];
+		const videoExts = ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv'];
+		const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'];
+		const codeExts = ['js', 'ts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'rb', 'php', 'swift', 'kt'];
+		const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
+		const spreadsheetExts = ['xls', 'xlsx', 'csv', 'ods'];
+		const docExts = ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'odt'];
+		const webExts = ['html', 'htm', 'xml'];
+		const styleExts = ['css', 'scss', 'sass', 'less'];
+		const dataExts = ['json', 'yaml', 'yml', 'toml'];
+
+		if (imageExts.includes(ext)) return FileImage;
+		if (videoExts.includes(ext)) return FileVideo;
+		if (audioExts.includes(ext)) return FileAudio;
+		if (codeExts.includes(ext)) return FileCode;
+		if (archiveExts.includes(ext)) return FileArchive;
+		if (spreadsheetExts.includes(ext)) return FileSpreadsheet;
+		if (docExts.includes(ext)) return FileText;
+		if (webExts.includes(ext)) return Globe;
+		if (styleExts.includes(ext)) return Palette;
+		if (dataExts.includes(ext)) return FileJson;
+		
+		return File;
 	}
 
 	function isSelected(path: string): boolean {
@@ -207,6 +201,7 @@
 				</tr>
 			{:else}
 				{#each items as item (item.path)}
+					{@const IconComponent = getFileIcon(item)}
 					<tr
 						class="file-row"
 						class:selected={isSelected(item.path)}
@@ -218,7 +213,9 @@
 						aria-selected={isSelected(item.path)}
 					>
 						<td class="name-cell">
-							<span class="file-icon">{getFileIcon(item)}</span>
+							<span class="file-icon" class:folder={item.isDir}>
+								<IconComponent size={16} />
+							</span>
 							<span class="file-name" title={item.name}>{item.name}</span>
 						</td>
 						<td class="type-cell">
@@ -378,10 +375,16 @@
 	}
 
 	.file-icon {
-		font-size: 16px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		flex-shrink: 0;
 		width: 20px;
-		text-align: center;
+		color: #888;
+	}
+
+	.file-icon.folder {
+		color: #e8c36a;
 	}
 
 	.file-name {

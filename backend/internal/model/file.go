@@ -41,3 +41,20 @@ func DefaultListOptions() ListOptions {
 		Filter:   "",
 	}
 }
+
+
+// DriveStats represents disk usage statistics for a mount point
+type DriveStats struct {
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	TotalBytes uint64 `json:"totalBytes"`
+	FreeBytes  uint64 `json:"freeBytes"`
+	UsedBytes  uint64 `json:"usedBytes"`
+	UsedPct    float64 `json:"usedPct"`
+	ReadOnly   bool   `json:"readOnly"`
+}
+
+// DriveStatsResponse represents the response for drive stats endpoint
+type DriveStatsResponse struct {
+	Drives []DriveStats `json:"drives"`
+}
