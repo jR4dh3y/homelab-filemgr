@@ -39,6 +39,7 @@
 	},
 	"dependencies": {
 		"@tanstack/svelte-query": "^6.0.14",
-		"lucide-svelte": "^0.562.0"
+		"lucide-svelte": "^0.562.0",
+		"monaco-editor": "^0.55.1"
 	}
 }

@@ -9,6 +9,7 @@
 	import FileList from '$lib/components/FileList.svelte';
 	import StatusBar from '$lib/components/StatusBar.svelte';
 	import DriveCard from '$lib/components/DriveCard.svelte';
+	import FilePreview from '$lib/components/FilePreview.svelte';
 	import {
 		pathStore,
 		currentPath,
@@ -17,6 +18,7 @@
 		fileQueryKeys
 	} from '$lib/stores/files';
 	import { listRoots, listDirectory, search, getDriveStats } from '$lib/api/files';
+	import { canPreview } from '$lib/utils/fileTypes';
 	import type { SortField, SortDir } from '$lib/types/files';
 	import type {
 		FileInfo,
@@ -29,6 +31,9 @@
 	let searchQuery = $state('');
 	let selectedPaths = $state(new Set<string>());
 	let viewMode = $state<'list' | 'grid'>('list');
+
+	// File preview state
+	let previewFile = $state<FileInfo | null>(null);
 
 	// Navigation history for back/forward
 	let historyStack = $state<string[]>(['']);
@@ -139,9 +144,13 @@
 		if (file.isDir) {
 			handleNavigate(file.path);
 		} else {
-			// TODO: Implement file preview/download
-			console.log('File clicked:', file);
+			// Open file preview
+			previewFile = file;
 		}
+	}
+
+	function handleClosePreview() {
+		previewFile = null;
 	}
 
 	function handleSortChange(field: SortField, dir: SortDir) {
@@ -229,6 +238,9 @@
 		/>
 	</div>
 </div>
+
+<!-- File Preview Modal -->
+<FilePreview file={previewFile} onClose={handleClosePreview} />
 
 <style>
 	.file-manager {

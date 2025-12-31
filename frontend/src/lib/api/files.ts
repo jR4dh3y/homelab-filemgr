@@ -206,3 +206,38 @@ export const filesApi = {
 	delete: deleteFile,
 	search
 };
+
+/**
+ * Get the preview URL for a file (for streaming media, images, etc.)
+ * This URL can be used directly in <video>, <audio>, <img>, <iframe> src
+ */
+export function getPreviewUrl(path: string): string {
+	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+	// Don't double-encode the path - just encode special characters
+	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+	const baseUrl = `/api/v1/preview/${encodedPath}`;
+	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+}
+
+/**
+ * Get the download URL for a file
+ */
+export function getDownloadUrl(path: string): string {
+	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+	const baseUrl = `/api/v1/download/${encodedPath}`;
+	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+}
+
+/**
+ * Fetch file content as text (for code/text preview)
+ */
+export async function getFileContent(path: string): Promise<string> {
+	// If path is already a full URL (from getPreviewUrl), use it directly
+	const url = path.startsWith('/api/') || path.startsWith('http') ? path : getPreviewUrl(path);
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch file: ${response.statusText}`);
+	}
+	return response.text();
+}

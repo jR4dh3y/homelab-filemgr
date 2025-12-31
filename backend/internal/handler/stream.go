@@ -43,6 +43,7 @@ func NewStreamHandler(fileService service.FileService, chunkSizeMB int) *StreamH
 // RegisterRoutes registers stream routes on the given router
 func (h *StreamHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/download/*", h.Download)
+	r.Get("/preview/*", h.Preview)
 	r.Post("/upload/*", h.Upload)
 	r.Get("/upload/status/*", h.UploadStatus)
 }
@@ -82,6 +83,48 @@ func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
 		http.ServeContent(w, r, info.Name, info.ModTime, rs)
 	} else {
 		// Fallback: copy the entire file if seeking is not supported
+		w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
+		io.Copy(w, file)
+	}
+}
+
+// Preview handles file preview requests (inline viewing) with Range header support
+// GET /api/v1/preview/*path
+func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
+	path := chi.URLParam(r, "*")
+	if path == "" {
+		writeError(w, "Path is required", model.ErrCodeValidationError, http.StatusBadRequest)
+		return
+	}
+
+	// Open the file using the file service (uses filesystem abstraction)
+	file, info, err := h.fileService.OpenFile(r.Context(), path)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+	defer file.Close()
+
+	// Detect MIME type
+	mimeType := h.detectMimeType(info.Name)
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	// Set response headers for inline viewing
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, info.Name))
+	w.Header().Set("Accept-Ranges", "bytes")
+	// Allow cross-origin requests for media playback
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Range")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+
+	// Use http.ServeContent for Range header support
+	if rs, ok := file.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, info.Name, info.ModTime, rs)
+	} else {
 		w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
 		io.Copy(w, file)
 	}
