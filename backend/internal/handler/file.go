@@ -27,6 +27,7 @@ func NewFileHandler(fileService service.FileService) *FileHandler {
 // RegisterRoutes registers file routes on the given router
 func (h *FileHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/", h.ListRoots)
+	r.Get("/stats", h.GetDriveStats)
 	r.Get("/*", h.GetPath)
 	r.Post("/*", h.CreateDir)
 	r.Put("/*", h.Rename)
@@ -69,6 +70,18 @@ func (h *FileHandler) ListRoots(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, RootsResponse{Roots: roots}, http.StatusOK)
+}
+
+// GetDriveStats returns disk usage statistics for all mount points
+// GET /api/v1/files/stats
+func (h *FileHandler) GetDriveStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.fileService.GetDriveStats(r.Context())
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, stats, http.StatusOK)
 }
 
 // GetPath handles GET requests for a path - returns directory listing or file info

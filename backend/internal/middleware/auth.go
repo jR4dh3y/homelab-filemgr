@@ -20,23 +20,22 @@ const (
 func JWTAuth(authService service.AuthService) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get Authorization header
+			var tokenString string
+
+			// First, try Authorization header
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				writeAuthError(w, "Missing authorization header", http.StatusUnauthorized)
-				return
+			if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+				tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 			}
 
-			// Check Bearer prefix
-			if !strings.HasPrefix(authHeader, "Bearer ") {
-				writeAuthError(w, "Invalid authorization header format", http.StatusUnauthorized)
-				return
-			}
-
-			// Extract token
-			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			// If no header token, try query parameter (for media streaming)
 			if tokenString == "" {
-				writeAuthError(w, "Missing token", http.StatusUnauthorized)
+				tokenString = r.URL.Query().Get("token")
+			}
+
+			// No token found
+			if tokenString == "" {
+				writeAuthError(w, "Missing authorization", http.StatusUnauthorized)
 				return
 			}
 

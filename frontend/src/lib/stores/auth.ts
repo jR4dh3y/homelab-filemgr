@@ -1,6 +1,5 @@
 /**
  * Auth store for managing authentication state
- * Requirements: 7.1, 7.4
  */
 
 import { writable, derived, get } from 'svelte/store';
@@ -10,6 +9,7 @@ import {
 	refresh as apiRefresh,
 	isAuthenticated as checkAuth
 } from '$lib/api/auth';
+import { CONFIG } from '$lib/config';
 
 /**
  * Auth state interface
@@ -37,9 +37,7 @@ const initialState: AuthState = {
 function createAuthStore() {
 	const { subscribe, set, update } = writable<AuthState>(initialState);
 
-	// Token refresh interval (refresh 1 minute before expiry, assuming 15 min tokens)
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
-	const REFRESH_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 
 	/**
 	 * Initialize auth state from stored tokens
@@ -65,14 +63,13 @@ function createAuthStore() {
 			try {
 				await apiRefresh();
 			} catch {
-				// Refresh failed - user will be logged out on next API call
 				stopTokenRefresh();
 				set({
 					...initialState,
 					error: 'Session expired. Please log in again.'
 				});
 			}
-		}, REFRESH_INTERVAL_MS);
+		}, CONFIG.auth.tokenRefreshIntervalMs);
 	}
 
 	/**

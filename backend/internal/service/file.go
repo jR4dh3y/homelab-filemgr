@@ -54,6 +54,8 @@ type FileService interface {
 	Delete(ctx context.Context, path string) error
 	// ListMountPoints returns all configured mount points
 	ListMountPoints() []model.MountPoint
+	// GetDriveStats returns disk usage statistics for all mount points
+	GetDriveStats(ctx context.Context) (*model.DriveStatsResponse, error)
 	// ResolvePath resolves a virtual path to a filesystem path
 	ResolvePath(path string) (*model.MountPoint, string, error)
 	// OpenFile opens a file for reading using the filesystem abstraction
@@ -87,6 +89,39 @@ func NewFileService(fsys filesystem.FS, cfg FileServiceConfig) FileService {
 // ListMountPoints returns all configured mount points
 func (s *fileService) ListMountPoints() []model.MountPoint {
 	return s.mountPoints
+}
+
+// GetDriveStats returns disk usage statistics for all mount points
+func (s *fileService) GetDriveStats(ctx context.Context) (*model.DriveStatsResponse, error) {
+	drives := make([]model.DriveStats, 0, len(s.mountPoints))
+
+	for _, mount := range s.mountPoints {
+		stats, err := getDiskUsage(mount.Path)
+		if err != nil {
+			// Skip mounts we can't stat, but continue with others
+			continue
+		}
+
+		drives = append(drives, model.DriveStats{
+			Name:       mount.Name,
+			Path:       mount.Path,
+			TotalBytes: stats.Total,
+			FreeBytes:  stats.Free,
+			UsedBytes:  stats.Used,
+			UsedPct:    stats.UsedPct,
+			ReadOnly:   mount.ReadOnly,
+		})
+	}
+
+	return &model.DriveStatsResponse{Drives: drives}, nil
+}
+
+// diskUsage holds disk usage statistics
+type diskUsage struct {
+	Total   uint64
+	Free    uint64
+	Used    uint64
+	UsedPct float64
 }
 
 // ResolvePath resolves a virtual path to a mount point and filesystem path

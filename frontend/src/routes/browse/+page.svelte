@@ -1,80 +1,142 @@
 <script lang="ts">
 	/**
-	 * Browse page - main file browser interface
-	 * Requirements: 1.1, 1.2
+	 * Browse page - main file browser interface (FilePilot style)
 	 */
 	import { createQuery } from '@tanstack/svelte-query';
-	import FileBrowser from '$lib/components/FileBrowser.svelte';
-	import {
-		pathStore,
-		currentPath,
-		pathSegments,
-		listOptionsStore,
-		fileQueryKeys
-	} from '$lib/stores/files';
-	import { listRoots, listDirectory, search } from '$lib/api/files';
+	import { goto } from '$app/navigation';
+	import Sidebar from '$lib/components/Sidebar.svelte';
+	import Toolbar from '$lib/components/Toolbar.svelte';
+	import FileList from '$lib/components/FileList.svelte';
+	import StatusBar from '$lib/components/StatusBar.svelte';
+	import DriveCard from '$lib/components/DriveCard.svelte';
+	import FilePreview from '$lib/components/FilePreview.svelte';
+	import { Spinner } from '$lib/components/ui';
+	import { pathStore, currentPath, pathSegments, listOptionsStore, fileQueryKeys } from '$lib/stores/files';
+	import { settingsStore } from '$lib/stores/settings';
+	import { listRoots, listDirectory, search, getDriveStats } from '$lib/api/files';
 	import type { SortField, SortDir } from '$lib/types/files';
-	import type {
-		FileInfo,
-		FileList as FileListType,
-		RootsResponse,
-		SearchResponse
-	} from '$lib/api/files';
+	import type { FileInfo, FileList as FileListType, RootsResponse, SearchResponse, DriveStatsResponse } from '$lib/api/files';
 
 	let searchQuery = $state('');
 	let selectedPaths = $state(new Set<string>());
+	let viewMode = $state<'list' | 'grid'>('list');
+	let previewFile = $state<FileInfo | null>(null);
+	let historyStack = $state<string[]>(['']);
+	let historyIndex = $state(0);
 
-	// Get current path and options from stores
 	const path = $derived($currentPath);
 	const segments = $derived($pathSegments);
 	const options = $derived($listOptionsStore);
+	const settings = $derived($settingsStore);
 
-	// Query for mount points (roots) - wrap in accessor function for Svelte 5
 	const rootsQuery = createQuery<RootsResponse>(() => ({
 		queryKey: fileQueryKeys.roots(),
-		queryFn: () => listRoots()
+		queryFn: () => listRoots(),
 	}));
 
-	// Query for directory contents - wrap in accessor function for Svelte 5
+	const driveStatsQuery = createQuery<DriveStatsResponse>(() => ({
+		queryKey: ['files', 'stats'],
+		queryFn: () => getDriveStats(),
+		enabled: path === '',
+	}));
+
 	const directoryQuery = createQuery<FileListType>(() => ({
 		queryKey: fileQueryKeys.list(path, options),
 		queryFn: () => listDirectory(path, options),
-		enabled: path !== ''
+		enabled: path !== '',
 	}));
 
-	// Query for search results - wrap in accessor function for Svelte 5
 	const searchQueryResult = createQuery<SearchResponse>(() => ({
 		queryKey: fileQueryKeys.search(path, searchQuery),
 		queryFn: () => search(path, searchQuery),
-		enabled: searchQuery.length >= 2
+		enabled: searchQuery.length >= 2,
 	}));
 
-	// Derived state - access query results directly (no $ prefix needed in Svelte 5)
 	const isLoading = $derived(directoryQuery.isLoading);
-	const isSearching = $derived(searchQueryResult.isLoading);
 	const fileList = $derived(directoryQuery.data ?? null);
 	const searchResults = $derived(searchQueryResult.data?.results ?? []);
-
-	// Show roots when at root path
-	const showRoots = $derived(path === '');
 	const roots = $derived(rootsQuery.data?.roots ?? []);
+	const driveStats = $derived(driveStatsQuery.data?.drives ?? []);
+	const isAtRoot = $derived(path === '');
+
+	const displayItems = $derived.by(() => {
+		let items: FileInfo[];
+
+		if (searchQuery && searchResults.length > 0) {
+			items = searchResults;
+		} else {
+			items = fileList?.items ?? [];
+		}
+
+		if (!settings.showHiddenFiles) {
+			items = items.filter((item) => !item.name.startsWith('.'));
+		}
+
+		return items;
+	});
+
+	const itemCount = $derived(isAtRoot ? driveStats.length : displayItems.length);
+	const selectedCount = $derived(selectedPaths.size);
+	const canGoBack = $derived(historyIndex > 0);
+	const canGoForward = $derived(historyIndex < historyStack.length - 1);
+	const canGoUp = $derived(segments.length > 0);
 
 	function handleNavigate(newPath: string) {
+		const newHistory = historyStack.slice(0, historyIndex + 1);
+		newHistory.push(newPath);
+		historyStack = newHistory;
+		historyIndex = newHistory.length - 1;
+
 		pathStore.navigateTo(newPath);
 		searchQuery = '';
+		selectedPaths = new Set();
+	}
+
+	function handleBack() {
+		if (canGoBack) {
+			historyIndex--;
+			pathStore.navigateTo(historyStack[historyIndex]);
+			selectedPaths = new Set();
+		}
+	}
+
+	function handleForward() {
+		if (canGoForward) {
+			historyIndex++;
+			pathStore.navigateTo(historyStack[historyIndex]);
+			selectedPaths = new Set();
+		}
+	}
+
+	function handleUp() {
+		if (canGoUp) {
+			const parentPath = segments.slice(0, -1).join('/');
+			handleNavigate(parentPath);
+		}
+	}
+
+	function handleRefresh() {
+		if (isAtRoot) {
+			driveStatsQuery.refetch();
+		} else {
+			directoryQuery.refetch();
+		}
+	}
+
+	function handleSettings() {
+		goto('/settings');
 	}
 
 	function handleFileClick(file: FileInfo) {
-		// TODO: Implement file preview/download
-		console.log('File clicked:', file);
+		if (file.isDir) {
+			handleNavigate(file.path);
+		} else {
+			previewFile = file;
+		}
 	}
 
-	function handleSearch(query: string) {
-		searchQuery = query;
-	}
-
-	function handleSearchClear() {
-		searchQuery = '';
+	function handleClosePreview() {
+		previewFile = null;
 	}
 
 	function handleSortChange(field: SortField, dir: SortDir) {
@@ -86,162 +148,75 @@
 		selectedPaths = paths;
 	}
 
-	function handleFilesDropped(files: File[]) {
-		// TODO: Implement file upload
-		console.log('Files dropped:', files);
+	function handleViewModeChange(mode: 'list' | 'grid') {
+		viewMode = mode;
 	}
 </script>
 
 <svelte:head>
-	<title>Browse Files</title>
+	<title>File Manager</title>
 </svelte:head>
 
-<div class="browse-page">
-	{#if showRoots}
-		<!-- Show mount points at root -->
-		<div class="roots-container">
-			<h1 class="roots-title">Mount Points</h1>
-			{#if rootsQuery.isLoading}
-				<div class="loading">Loading mount points...</div>
-			{:else if rootsQuery.error}
-				<div class="error">Failed to load mount points</div>
-			{:else if roots.length === 0}
-				<div class="empty">No mount points configured</div>
-			{:else}
-				<div class="roots-grid">
-					{#each roots as root (root.name)}
-						<button type="button" class="root-card" onclick={() => handleNavigate(root.name)}>
-							<span class="root-icon">📁</span>
-							<span class="root-name">{root.name}</span>
-							{#if root.readOnly}
-								<span class="root-badge">Read-only</span>
-							{/if}
-						</button>
-					{/each}
+<div class="flex h-screen w-full bg-surface-primary overflow-hidden">
+	<!-- Sidebar -->
+	<Sidebar {roots} currentPath={path} onNavigate={handleNavigate} />
+
+	<!-- Main content area -->
+	<div class="flex-1 flex flex-col min-w-0">
+		<!-- Toolbar with navigation and path bar -->
+		<Toolbar
+			pathSegments={segments}
+			{canGoBack}
+			{canGoForward}
+			{canGoUp}
+			onBack={handleBack}
+			onForward={handleForward}
+			onUp={handleUp}
+			onNavigate={handleNavigate}
+			onRefresh={handleRefresh}
+			onSettings={handleSettings}
+		/>
+
+		<!-- File list or Drive cards -->
+		<div class="flex-1 overflow-auto">
+			{#if isAtRoot}
+				<!-- This Server view - show drive cards -->
+				<div class="p-6">
+					<h2 class="text-lg font-medium text-text-primary m-0 mb-5">Storage Devices</h2>
+					{#if driveStatsQuery.isLoading}
+						<div class="flex items-center gap-2 text-text-secondary text-sm py-5">
+							<Spinner size="sm" />
+							<span>Loading drives...</span>
+						</div>
+					{:else if driveStats.length === 0}
+						<div class="text-text-secondary text-sm py-5">No storage devices configured</div>
+					{:else}
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+							{#each driveStats as drive (drive.name)}
+								<DriveCard {drive} onClick={() => handleNavigate(drive.name)} />
+							{/each}
+						</div>
+					{/if}
 				</div>
+			{:else}
+				<FileList
+					items={displayItems}
+					sortBy={options.sortBy}
+					sortDir={options.sortDir}
+					{selectedPaths}
+					{isLoading}
+					compactMode={settings.compactMode}
+					onItemClick={handleFileClick}
+					onSortChange={handleSortChange}
+					onSelectionChange={handleSelectionChange}
+				/>
 			{/if}
 		</div>
-	{:else}
-		<!-- Show file browser -->
-		<FileBrowser
-			pathSegments={segments}
-			{fileList}
-			{isLoading}
-			{searchQuery}
-			{isSearching}
-			{searchResults}
-			sortBy={options.sortBy}
-			sortDir={options.sortDir}
-			{selectedPaths}
-			onNavigate={handleNavigate}
-			onFileClick={handleFileClick}
-			onSearch={handleSearch}
-			onSearchClear={handleSearchClear}
-			onSortChange={handleSortChange}
-			onSelectionChange={handleSelectionChange}
-			onFilesDropped={handleFilesDropped}
-		/>
-	{/if}
+
+		<!-- Status bar -->
+		<StatusBar {itemCount} {selectedCount} {viewMode} onViewModeChange={handleViewModeChange} />
+	</div>
 </div>
 
-<style>
-	.browse-page {
-		height: 100%;
-		padding: 1rem;
-	}
-
-	.roots-container {
-		max-width: 800px;
-		margin: 0 auto;
-	}
-
-	.roots-title {
-		font-size: 1.5rem;
-		font-weight: 600;
-		margin-bottom: 1.5rem;
-		color: #111827;
-	}
-
-	.loading,
-	.error,
-	.empty {
-		padding: 2rem;
-		text-align: center;
-		color: #6b7280;
-	}
-
-	.error {
-		color: #dc2626;
-	}
-
-	.roots-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 1rem;
-	}
-
-	.root-card {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 1.5rem;
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-
-	.root-card:hover {
-		border-color: #3b82f6;
-		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-	}
-
-	.root-icon {
-		font-size: 2.5rem;
-	}
-
-	.root-name {
-		font-weight: 500;
-		color: #374151;
-	}
-
-	.root-badge {
-		font-size: 0.75rem;
-		padding: 0.125rem 0.5rem;
-		background: #fef3c7;
-		color: #92400e;
-		border-radius: 9999px;
-	}
-
-	/* Dark mode */
-	@media (prefers-color-scheme: dark) {
-		.roots-title {
-			color: #f9fafb;
-		}
-
-		.loading,
-		.empty {
-			color: #9ca3af;
-		}
-
-		.root-card {
-			background: #1f2937;
-			border-color: #374151;
-		}
-
-		.root-card:hover {
-			border-color: #60a5fa;
-		}
-
-		.root-name {
-			color: #e5e7eb;
-		}
-
-		.root-badge {
-			background: #78350f;
-			color: #fde68a;
-		}
-	}
-</style>
+<!-- File Preview Modal -->
+<FilePreview file={previewFile} onClose={handleClosePreview} />

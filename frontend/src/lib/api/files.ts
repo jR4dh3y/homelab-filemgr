@@ -45,6 +45,26 @@ export interface RootsResponse {
 }
 
 /**
+ * Drive statistics
+ */
+export interface DriveStats {
+	name: string;
+	path: string;
+	totalBytes: number;
+	freeBytes: number;
+	usedBytes: number;
+	usedPct: number;
+	readOnly: boolean;
+}
+
+/**
+ * Drive stats response
+ */
+export interface DriveStatsResponse {
+	drives: DriveStats[];
+}
+
+/**
  * Options for listing directory contents
  */
 export interface ListOptions {
@@ -92,6 +112,14 @@ interface MessageResponse {
  */
 export async function listRoots(): Promise<RootsResponse> {
 	return api.get<RootsResponse>('/files');
+}
+
+/**
+ * Get drive statistics for all mount points
+ * GET /api/v1/files/stats
+ */
+export async function getDriveStats(): Promise<DriveStatsResponse> {
+	return api.get<DriveStatsResponse>('/files/stats');
 }
 
 /**
@@ -169,6 +197,7 @@ export async function search(path: string, query: string): Promise<SearchRespons
  */
 export const filesApi = {
 	listRoots,
+	getDriveStats,
 	getPath,
 	listDirectory,
 	getFileInfo,
@@ -177,3 +206,38 @@ export const filesApi = {
 	delete: deleteFile,
 	search
 };
+
+/**
+ * Get the preview URL for a file (for streaming media, images, etc.)
+ * This URL can be used directly in <video>, <audio>, <img>, <iframe> src
+ */
+export function getPreviewUrl(path: string): string {
+	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+	// Don't double-encode the path - just encode special characters
+	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+	const baseUrl = `/api/v1/stream/preview/${encodedPath}`;
+	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+}
+
+/**
+ * Get the download URL for a file
+ */
+export function getDownloadUrl(path: string): string {
+	const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+	const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+	const baseUrl = `/api/v1/stream/download/${encodedPath}`;
+	return token ? `${baseUrl}?token=${encodeURIComponent(token)}` : baseUrl;
+}
+
+/**
+ * Fetch file content as text (for code/text preview)
+ */
+export async function getFileContent(path: string): Promise<string> {
+	// If path is already a full URL (from getPreviewUrl), use it directly
+	const url = path.startsWith('/api/') || path.startsWith('http') ? path : getPreviewUrl(path);
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch file: ${response.statusText}`);
+	}
+	return response.text();
+}

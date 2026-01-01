@@ -3,3 +3,41 @@
 /* Tailwind v4 plugins are configured via vite.config.ts */
 /* The @tailwindcss/forms and @tailwindcss/typography plugins 
    are loaded through the @tailwindcss/vite plugin */
+
+/* Design Tokens - Single source of truth for colors */
+@theme {
+	/* Surface colors (backgrounds) */
+	--color-surface-primary: #1e1e1e;
+	--color-surface-secondary: #252525;
+	--color-surface-tertiary: #2a2a2a;
+	--color-surface-elevated: #333;
+
+	/* Border colors */
+	--color-border-primary: #333;
+	--color-border-secondary: #2a2a2a;
+	--color-border-focus: #4a9eff;
+
+	/* Text colors */
+	--color-text-primary: #e0e0e0;
+	--color-text-secondary: #888;
+	--color-text-muted: #666;
+	--color-text-disabled: #444;
+
+	/* Accent colors */
+	--color-accent: #4a9eff;
+	--color-accent-hover: #345580;
+	--color-accent-muted: #2d4a6f;
+
+	/* Semantic colors */
+	--color-danger: #dc3545;
+	--color-danger-hover: #b02a37;
+	--color-success: #10b981;
+	--color-success-hover: #059669;
+	--color-warning: #f39c12;
+	--color-warning-hover: #d68910;
+
+	/* Special colors */
+	--color-folder: #e8c36a;
+	--color-selection: #2d4a6f;
+	--color-selection-hover: #345580;
+}
