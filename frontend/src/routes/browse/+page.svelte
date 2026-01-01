@@ -191,7 +191,7 @@
 					{:else if driveStats.length === 0}
 						<div class="text-text-secondary text-sm py-5">No storage devices configured</div>
 					{:else}
-						<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{#each driveStats as drive (drive.name)}
 								<DriveCard {drive} onClick={() => handleNavigate(drive.name)} />
 							{/each}

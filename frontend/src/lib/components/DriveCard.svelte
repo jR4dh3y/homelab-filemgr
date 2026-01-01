@@ -55,7 +55,7 @@
 				<ProgressBar value={drive.usedPct} size="sm" variant={progressVariant} />
 			</div>
 			<span class="text-[11px] shrink-0 {drive.usedPct >= 90 ? 'text-danger' : drive.usedPct >= 75 ? 'text-warning' : 'text-text-muted'}">
-				{drive.usedPct}%
+				{drive.usedPct.toFixed(1)}%
 			</span>
 		</div>
 	</div>
