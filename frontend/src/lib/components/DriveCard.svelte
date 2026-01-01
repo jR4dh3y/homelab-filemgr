@@ -5,6 +5,7 @@
 	import type { DriveStats } from '$lib/api/files';
 	import { HardDrive } from 'lucide-svelte';
 	import { formatFileSize } from '$lib/utils/format';
+	import { Badge } from '$lib/components/ui';
 
 	interface Props {
 		drive: DriveStats;
@@ -18,136 +19,40 @@
 	const freeFormatted = $derived(formatFileSize(drive.freeBytes));
 
 	// Color based on usage percentage
-	const barColor = $derived.by(() => {
-		if (drive.usedPct >= 90) return '#e74c3c';
-		if (drive.usedPct >= 75) return '#f39c12';
-		return '#3498db';
+	const barColorClass = $derived.by(() => {
+		if (drive.usedPct >= 90) return 'bg-danger';
+		if (drive.usedPct >= 75) return 'bg-warning';
+		return 'bg-accent';
 	});
 </script>
 
-<button type="button" class="drive-card" onclick={onClick}>
-	<div class="drive-header">
-		<div class="drive-icon">
+<button
+	type="button"
+	class="flex flex-col gap-3 p-4 bg-surface-secondary border border-border-primary rounded-md cursor-pointer transition-all duration-150 text-left w-full hover:bg-surface-tertiary hover:border-border-focus"
+	onclick={onClick}
+>
+	<div class="flex items-center gap-3">
+		<div class="flex items-center justify-center w-10 h-10 bg-surface-elevated rounded-md text-text-secondary">
 			<HardDrive size={24} />
 		</div>
-		<div class="drive-info">
-			<span class="drive-name">{drive.name}</span>
+		<div class="flex flex-col gap-0.5">
+			<span class="text-sm font-medium text-text-primary">{drive.name}</span>
 			{#if drive.readOnly}
-				<span class="drive-badge">Read-only</span>
+				<Badge>Read-only</Badge>
 			{/if}
 		</div>
 	</div>
 
-	<div class="drive-stats">
-		<div class="usage-bar-container">
-			<div 
-				class="usage-bar" 
-				style="width: {drive.usedPct}%; background-color: {barColor};"
-			></div>
+	<div class="flex flex-col gap-1.5">
+		<div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden">
+			<div class="{barColorClass} h-full rounded-full transition-all duration-300" style="width: {drive.usedPct}%"></div>
 		</div>
-		<div class="usage-text">
-			<span class="usage-used">{usedFormatted} used</span>
-			<span class="usage-free">{freeFormatted} free</span>
+		<div class="flex justify-between text-xs">
+			<span class="text-text-secondary">{usedFormatted} used</span>
+			<span class="text-text-muted">{freeFormatted} free</span>
 		</div>
-		<div class="usage-total">
+		<div class="text-[11px] text-text-muted">
 			{totalFormatted} total
 		</div>
 	</div>
 </button>
-
-<style>
-	.drive-card {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		padding: 16px;
-		background: #252525;
-		border: 1px solid #333;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.15s ease;
-		text-align: left;
-		width: 100%;
-	}
-
-	.drive-card:hover {
-		background: #2a2a2a;
-		border-color: #444;
-	}
-
-	.drive-header {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-
-	.drive-icon {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 40px;
-		height: 40px;
-		background: #333;
-		border-radius: 6px;
-		color: #888;
-	}
-
-	.drive-info {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-
-	.drive-name {
-		font-size: 14px;
-		font-weight: 500;
-		color: #e0e0e0;
-	}
-
-	.drive-badge {
-		font-size: 10px;
-		color: #888;
-		background: #333;
-		padding: 1px 6px;
-		border-radius: 3px;
-		width: fit-content;
-	}
-
-	.drive-stats {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-
-	.usage-bar-container {
-		height: 6px;
-		background: #333;
-		border-radius: 3px;
-		overflow: hidden;
-	}
-
-	.usage-bar {
-		height: 100%;
-		border-radius: 3px;
-		transition: width 0.3s ease;
-	}
-
-	.usage-text {
-		display: flex;
-		justify-content: space-between;
-		font-size: 12px;
-	}
-
-	.usage-used {
-		color: #aaa;
-	}
-
-	.usage-free {
-		color: #888;
-	}
-
-	.usage-total {
-		font-size: 11px;
-		color: #666;
-	}
-</style>

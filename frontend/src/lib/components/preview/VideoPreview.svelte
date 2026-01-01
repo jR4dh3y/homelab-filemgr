@@ -18,9 +18,9 @@
 	}
 </script>
 
-<div class="video-preview">
+<div class="w-full h-full flex items-center justify-center bg-black">
 	{#if error}
-		<div class="error-message">{error}</div>
+		<div class="text-danger text-sm text-center p-5">{error}</div>
 	{:else}
 		<video
 			bind:this={videoElement}
@@ -29,33 +29,10 @@
 			autoplay
 			preload="metadata"
 			onerror={handleError}
+			class="max-w-full max-h-full outline-none"
 		>
 			<track kind="captions" />
 			Your browser does not support the video tag.
 		</video>
 	{/if}
 </div>
-
-<style>
-	.video-preview {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #000;
-	}
-
-	video {
-		max-width: 100%;
-		max-height: 100%;
-		outline: none;
-	}
-
-	.error-message {
-		color: #f87171;
-		font-size: 14px;
-		text-align: center;
-		padding: 20px;
-	}
-</style>

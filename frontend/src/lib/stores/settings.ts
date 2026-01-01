@@ -2,6 +2,7 @@
  * Settings store - persists user preferences to localStorage
  */
 import { writable, derived, get } from 'svelte/store';
+import { settingsStorage } from '$lib/utils/storage';
 
 export interface UserSettings {
 	showHiddenFiles: boolean;
@@ -13,8 +14,6 @@ export interface UserSettings {
 	previewOnSingleClick: boolean;
 	compactMode: boolean;
 }
-
-const SETTINGS_KEY = 'filemanager_settings';
 
 const defaultSettings: UserSettings = {
 	showHiddenFiles: false,
@@ -28,27 +27,12 @@ const defaultSettings: UserSettings = {
 };
 
 function loadSettings(): UserSettings {
-	if (typeof window === 'undefined') return defaultSettings;
-	
-	try {
-		const stored = localStorage.getItem(SETTINGS_KEY);
-		if (stored) {
-			return { ...defaultSettings, ...JSON.parse(stored) };
-		}
-	} catch (e) {
-		console.error('Failed to load settings:', e);
-	}
-	return defaultSettings;
+	const stored = settingsStorage.get<UserSettings>();
+	return stored ? { ...defaultSettings, ...stored } : defaultSettings;
 }
 
 function saveSettings(settings: UserSettings): void {
-	if (typeof window === 'undefined') return;
-	
-	try {
-		localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-	} catch (e) {
-		console.error('Failed to save settings:', e);
-	}
+	settingsStorage.set(settings);
 }
 
 function createSettingsStore() {

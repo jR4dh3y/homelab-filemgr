@@ -6,22 +6,11 @@
 
 	import type { FileInfo } from '$lib/api/files';
 	import type { SortField, SortDir } from '$lib/types/files';
-	import { formatFileSize, formatFileDate, getFileTypeDescription } from '$lib/utils/format';
+	import { formatFileSize, formatFileDate } from '$lib/utils/format';
+	import { getFileTypeDescription, getFileIcon } from '$lib/utils/fileTypes';
 	import { SvelteSet } from 'svelte/reactivity';
-	import {
-		Folder,
-		File,
-		FileImage,
-		FileVideo,
-		FileAudio,
-		FileText,
-		FileCode,
-		FileArchive,
-		FileSpreadsheet,
-		Globe,
-		Palette,
-		FileJson
-	} from 'lucide-svelte';
+	import { Spinner } from '$lib/components/ui';
+	import { FolderOpen } from 'lucide-svelte';
 
 	let {
 		items = [],
@@ -32,7 +21,7 @@
 		compactMode = false,
 		onItemClick,
 		onSortChange,
-		onSelectionChange
+		onSelectionChange,
 	}: {
 		items?: FileInfo[];
 		sortBy?: SortField;
@@ -64,12 +53,10 @@
 			}
 			onSelectionChange?.(newSelection);
 		} else if (event.shiftKey && selectedPaths.size > 0) {
-			// Shift-click for range selection
 			const newSelection = new SvelteSet<string>(selectedPaths);
 			newSelection.add(item.path);
 			onSelectionChange?.(newSelection);
 		} else {
-			// Single click selects, double click opens
 			const newSelection = new SvelteSet<string>([item.path]);
 			onSelectionChange?.(newSelection);
 		}
@@ -91,142 +78,110 @@
 		return sortDir === 'asc' ? '▲' : '▼';
 	}
 
-	function getFileIcon(item: FileInfo) {
-		if (item.isDir) return Folder;
-		const ext = item.name.includes('.')
-			? item.name.slice(item.name.lastIndexOf('.') + 1).toLowerCase()
-			: '';
-		
-		const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'];
-		const videoExts = ['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv'];
-		const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma'];
-		const codeExts = ['js', 'ts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'rb', 'php', 'swift', 'kt'];
-		const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
-		const spreadsheetExts = ['xls', 'xlsx', 'csv', 'ods'];
-		const docExts = ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'odt'];
-		const webExts = ['html', 'htm', 'xml'];
-		const styleExts = ['css', 'scss', 'sass', 'less'];
-		const dataExts = ['json', 'yaml', 'yml', 'toml'];
-
-		if (imageExts.includes(ext)) return FileImage;
-		if (videoExts.includes(ext)) return FileVideo;
-		if (audioExts.includes(ext)) return FileAudio;
-		if (codeExts.includes(ext)) return FileCode;
-		if (archiveExts.includes(ext)) return FileArchive;
-		if (spreadsheetExts.includes(ext)) return FileSpreadsheet;
-		if (docExts.includes(ext)) return FileText;
-		if (webExts.includes(ext)) return Globe;
-		if (styleExts.includes(ext)) return Palette;
-		if (dataExts.includes(ext)) return FileJson;
-		
-		return File;
-	}
-
 	function isSelected(path: string): boolean {
 		return selectedPaths.has(path);
 	}
+
+	const thClass =
+		'text-left px-3 py-2 bg-surface-secondary border-b border-border-primary font-medium text-text-secondary whitespace-nowrap select-none sticky top-0 z-[5] cursor-pointer transition-colors duration-100 hover:bg-surface-tertiary hover:text-text-primary focus:outline focus:outline-1 focus:outline-accent focus:-outline-offset-1';
+	const thSortedClass = 'text-accent';
+	const tdClass = 'px-3 py-1.5 border-b border-border-secondary text-text-primary';
 </script>
 
-<div class="file-list" class:compact={compactMode}>
+<div class="relative w-full h-full overflow-auto bg-surface-primary {compactMode ? 'compact' : ''}">
 	{#if isLoading}
-		<div class="loading-overlay">
-			<div class="spinner"></div>
+		<div class="absolute inset-0 bg-surface-primary/80 flex items-center justify-center z-10">
+			<Spinner />
 		</div>
 	{/if}
 
-	<table class="file-table" role="grid" aria-busy={isLoading}>
+	<table class="w-full border-collapse text-[13px]" role="grid" aria-busy={isLoading}>
 		<thead>
 			<tr>
 				<th
-					class="sortable name-col"
-					class:sorted={sortBy === 'name'}
+					class="{thClass} min-w-[200px] {sortBy === 'name' ? thSortedClass : ''}"
 					onclick={() => handleSort('name')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('name')}
 					tabindex="0"
 					role="columnheader"
 					aria-sort={sortBy === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
 				>
-					<span class="col-label">Name</span>
-					<span class="sort-indicator">{getSortIndicator('name')}</span>
+					<span class="mr-1">Name</span>
+					<span class="text-[10px] opacity-80">{getSortIndicator('name')}</span>
 				</th>
 				<th
-					class="sortable type-col"
-					class:sorted={sortBy === 'type'}
+					class="{thClass} w-[120px] {sortBy === 'type' ? thSortedClass : ''}"
 					onclick={() => handleSort('type')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('type')}
 					tabindex="0"
 					role="columnheader"
 					aria-sort={sortBy === 'type' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
 				>
-					<span class="col-label">Type</span>
-					<span class="sort-indicator">{getSortIndicator('type')}</span>
+					<span class="mr-1">Type</span>
+					<span class="text-[10px] opacity-80">{getSortIndicator('type')}</span>
 				</th>
 				<th
-					class="sortable size-col"
-					class:sorted={sortBy === 'size'}
+					class="{thClass} w-[100px] text-right {sortBy === 'size' ? thSortedClass : ''}"
 					onclick={() => handleSort('size')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('size')}
 					tabindex="0"
 					role="columnheader"
 					aria-sort={sortBy === 'size' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
 				>
-					<span class="col-label">Size</span>
-					<span class="sort-indicator">{getSortIndicator('size')}</span>
+					<span class="mr-1">Size</span>
+					<span class="text-[10px] opacity-80">{getSortIndicator('size')}</span>
 				</th>
 				<th
-					class="sortable date-col"
-					class:sorted={sortBy === 'modTime'}
+					class="{thClass} w-[150px] {sortBy === 'modTime' ? thSortedClass : ''}"
 					onclick={() => handleSort('modTime')}
 					onkeydown={(e) => e.key === 'Enter' && handleSort('modTime')}
 					tabindex="0"
 					role="columnheader"
-					aria-sort={sortBy === 'modTime'
-						? sortDir === 'asc'
-							? 'ascending'
-							: 'descending'
-						: 'none'}
+					aria-sort={sortBy === 'modTime' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
 				>
-					<span class="col-label">Modified</span>
-					<span class="sort-indicator">{getSortIndicator('modTime')}</span>
+					<span class="mr-1">Modified</span>
+					<span class="text-[10px] opacity-80">{getSortIndicator('modTime')}</span>
 				</th>
 			</tr>
 		</thead>
 		<tbody>
 			{#if items.length === 0 && !isLoading}
-				<tr class="empty-row">
-					<td colspan="4">
-						<div class="empty-state">
-							<span class="empty-icon">📂</span>
-							<span class="empty-text">This folder is empty</span>
+				<tr>
+					<td colspan="4" class="py-12 px-3">
+						<div class="flex flex-col items-center gap-2 text-text-muted">
+							<FolderOpen size={32} class="opacity-50" />
+							<span class="text-[13px]">This folder is empty</span>
 						</div>
 					</td>
 				</tr>
 			{:else}
 				{#each items as item (item.path)}
-					{@const IconComponent = getFileIcon(item)}
+					{@const IconComponent = getFileIcon(item.name, item.isDir)}
 					<tr
-						class="file-row"
-						class:selected={isSelected(item.path)}
-						class:directory={item.isDir}
+						class="cursor-default transition-colors duration-50 hover:bg-surface-secondary focus:outline-none focus:bg-selection {isSelected(item.path)
+							? 'bg-selection hover:bg-selection-hover'
+							: ''}"
 						onclick={(e) => handleRowClick(item, e)}
 						onkeydown={(e) => handleKeyDown(item, e)}
 						ondblclick={() => handleDoubleClick(item)}
 						tabindex="0"
 						aria-selected={isSelected(item.path)}
 					>
-						<td class="name-cell">
-							<span class="file-icon" class:folder={item.isDir}>
+						<td class="{tdClass} flex items-center gap-2">
+							<span class="flex items-center justify-center shrink-0 w-5 {item.isDir ? 'text-folder' : 'text-text-secondary'}">
 								<IconComponent size={16} />
 							</span>
-							<span class="file-name" title={item.name}>{item.name}</span>
+							<span class="overflow-hidden text-ellipsis whitespace-nowrap {item.isDir ? 'text-folder' : ''}" title={item.name}>
+								{item.name}
+							</span>
 						</td>
-						<td class="type-cell">
+						<td class="{tdClass} text-text-secondary">
 							{item.isDir ? 'Folder' : getFileTypeDescription(item.name)}
 						</td>
-						<td class="size-cell">
+						<td class="{tdClass} text-right tabular-nums text-text-secondary">
 							{item.isDir ? '' : formatFileSize(item.size)}
 						</td>
-						<td class="date-cell">
+						<td class="{tdClass} whitespace-nowrap text-text-secondary">
 							{formatFileDate(item.modTime)}
 						</td>
 					</tr>
@@ -235,216 +190,3 @@
 		</tbody>
 	</table>
 </div>
-
-<style>
-	.file-list {
-		position: relative;
-		width: 100%;
-		height: 100%;
-		overflow: auto;
-		background: #1e1e1e;
-	}
-
-	.loading-overlay {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(30, 30, 30, 0.8);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 10;
-	}
-
-	.spinner {
-		width: 24px;
-		height: 24px;
-		border: 2px solid #333;
-		border-top-color: #4a9eff;
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.file-table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 13px;
-	}
-
-	.file-table th {
-		text-align: left;
-		padding: 8px 12px;
-		background: #252525;
-		border-bottom: 1px solid #333;
-		font-weight: 500;
-		color: #888;
-		white-space: nowrap;
-		user-select: none;
-		position: sticky;
-		top: 0;
-		z-index: 5;
-	}
-
-	.file-table th.sortable {
-		cursor: pointer;
-		transition: background-color 0.1s ease;
-	}
-
-	.file-table th.sortable:hover {
-		background: #2a2a2a;
-		color: #aaa;
-	}
-
-	.file-table th.sortable:focus {
-		outline: 1px solid #4a9eff;
-		outline-offset: -1px;
-	}
-
-	.file-table th.sorted {
-		color: #4a9eff;
-	}
-
-	.col-label {
-		margin-right: 4px;
-	}
-
-	.sort-indicator {
-		font-size: 10px;
-		opacity: 0.8;
-	}
-
-	.name-col {
-		min-width: 200px;
-	}
-
-	.type-col {
-		width: 120px;
-	}
-
-	.size-col {
-		width: 100px;
-		text-align: right;
-	}
-
-	.date-col {
-		width: 150px;
-	}
-
-	.file-table td {
-		padding: 6px 12px;
-		border-bottom: 1px solid #2a2a2a;
-		color: #ccc;
-	}
-
-	.file-row {
-		cursor: default;
-		transition: background-color 0.05s ease;
-	}
-
-	.file-row:hover {
-		background: #252525;
-	}
-
-	.file-row:focus {
-		outline: none;
-		background: #2d4a6f;
-	}
-
-	.file-row.selected {
-		background: #2d4a6f;
-	}
-
-	.file-row.selected:hover {
-		background: #345580;
-	}
-
-	.file-row.directory .file-name {
-		color: #e8c36a;
-	}
-
-	.name-cell {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.file-icon {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 20px;
-		color: #888;
-	}
-
-	.file-icon.folder {
-		color: #e8c36a;
-	}
-
-	.file-name {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.type-cell {
-		color: #888;
-	}
-
-	.size-cell {
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-		color: #888;
-	}
-
-	.date-cell {
-		white-space: nowrap;
-		color: #888;
-	}
-
-	.empty-row td {
-		padding: 48px 12px;
-	}
-
-	.empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 8px;
-		color: #555;
-	}
-
-	.empty-icon {
-		font-size: 32px;
-		opacity: 0.5;
-	}
-
-	.empty-text {
-		font-size: 13px;
-	}
-
-	/* Compact mode */
-	.file-list.compact .file-table th {
-		padding: 6px 12px;
-	}
-
-	.file-list.compact .file-table td {
-		padding: 4px 12px;
-	}
-
-	.file-list.compact .file-icon {
-		width: 16px;
-	}
-
-	.file-list.compact .name-cell {
-		gap: 6px;
-	}
-</style>

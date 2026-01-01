@@ -1,10 +1,11 @@
 <script lang="ts">
 	/**
 	 * Login page component
-	 * Requirements: 7.1
 	 */
 	import { authStore, authError, isAuthLoading } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
+	import { Button, Input, Spinner } from '$lib/components/ui';
+	import { X, FolderOpen, AlertTriangle } from 'lucide-svelte';
 
 	let username = $state('');
 	let password = $state('');
@@ -31,37 +32,36 @@
 	<title>Login - File Manager</title>
 </svelte:head>
 
-<div class="login-container">
-	<div class="login-card">
-		<div class="login-header">
-			<span class="login-icon">📁</span>
-			<h1 class="login-title">File Manager</h1>
-			<p class="login-subtitle">Sign in to access your files</p>
+<div class="min-h-screen flex items-center justify-center p-4 bg-surface-primary">
+	<div class="w-full max-w-[400px] bg-surface-secondary border border-border-primary rounded-lg p-8">
+		<div class="text-center mb-8">
+			<span class="block mb-2 text-accent"><FolderOpen size={48} /></span>
+			<h1 class="text-2xl font-semibold text-text-primary m-0 mb-2">File Manager</h1>
+			<p class="text-sm text-text-secondary m-0">Sign in to access your files</p>
 		</div>
 
-		<form class="login-form" onsubmit={handleSubmit}>
+		<form class="flex flex-col gap-5" onsubmit={handleSubmit}>
 			{#if $authError}
-				<div class="error-message" role="alert">
-					<span class="error-icon">⚠️</span>
-					<span>{$authError}</span>
+				<div class="flex items-center gap-2 px-4 py-3 bg-danger/20 border border-danger/30 rounded text-danger text-sm" role="alert">
+					<span class="shrink-0"><AlertTriangle size={16} /></span>
+					<span class="flex-1">{$authError}</span>
 					<button
 						type="button"
-						class="error-dismiss"
+						class="ml-auto p-0 w-6 h-6 flex items-center justify-center bg-transparent border-none text-xl text-danger cursor-pointer rounded transition-colors hover:bg-danger/30"
 						onclick={clearError}
 						aria-label="Dismiss error"
 					>
-						×
+						<X size={16} />
 					</button>
 				</div>
 			{/if}
 
-			<div class="form-group">
-				<label for="username" class="form-label">Username</label>
-				<input
+			<div class="flex flex-col gap-2">
+				<label for="username" class="text-sm font-medium text-text-secondary">Username</label>
+				<Input
 					type="text"
 					id="username"
 					bind:value={username}
-					class="form-input"
 					placeholder="Enter your username"
 					autocomplete="username"
 					required
@@ -69,13 +69,12 @@
 				/>
 			</div>
 
-			<div class="form-group">
-				<label for="password" class="form-label">Password</label>
-				<input
+			<div class="flex flex-col gap-2">
+				<label for="password" class="text-sm font-medium text-text-secondary">Password</label>
+				<Input
 					type="password"
 					id="password"
 					bind:value={password}
-					class="form-input"
 					placeholder="Enter your password"
 					autocomplete="current-password"
 					required
@@ -83,186 +82,18 @@
 				/>
 			</div>
 
-			<button
+			<Button
 				type="submit"
-				class="submit-btn"
+				variant="primary"
 				disabled={$isAuthLoading || !username.trim() || !password}
 			>
 				{#if $isAuthLoading}
-					<span class="btn-spinner"></span>
+					<Spinner size="sm" />
 					<span>Signing in...</span>
 				{:else}
 					<span>Sign In</span>
 				{/if}
-			</button>
+			</Button>
 		</form>
 	</div>
 </div>
-
-<style>
-	.login-container {
-		min-height: 100vh;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		background: #141414;
-	}
-
-	.login-card {
-		width: 100%;
-		max-width: 400px;
-		background: #1e1e1e;
-		border: 1px solid #2a2a2a;
-		border-radius: 8px;
-		padding: 2rem;
-	}
-
-	.login-header {
-		text-align: center;
-		margin-bottom: 2rem;
-	}
-
-	.login-icon {
-		font-size: 3rem;
-		display: block;
-		margin-bottom: 0.5rem;
-	}
-
-	.login-title {
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #e0e0e0;
-		margin: 0 0 0.5rem;
-	}
-
-	.login-subtitle {
-		font-size: 0.875rem;
-		color: #888;
-		margin: 0;
-	}
-
-	.login-form {
-		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
-
-	.error-message {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1rem;
-		background: #3d1f1f;
-		border: 1px solid #5c2a2a;
-		border-radius: 4px;
-		color: #f87171;
-		font-size: 0.875rem;
-	}
-
-	.error-icon {
-		flex-shrink: 0;
-	}
-
-	.error-dismiss {
-		margin-left: auto;
-		padding: 0;
-		width: 1.5rem;
-		height: 1.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: transparent;
-		border: none;
-		font-size: 1.25rem;
-		color: #f87171;
-		cursor: pointer;
-		border-radius: 4px;
-		transition: background-color 0.15s;
-	}
-
-	.error-dismiss:hover {
-		background: #5c2a2a;
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.form-label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #aaa;
-	}
-
-	.form-input {
-		padding: 0.75rem 1rem;
-		font-size: 1rem;
-		border: 1px solid #333;
-		border-radius: 4px;
-		background: #252525;
-		color: #e0e0e0;
-		transition: border-color 0.15s;
-	}
-
-	.form-input:focus {
-		outline: none;
-		border-color: #4a9eff;
-	}
-
-	.form-input:disabled {
-		background: #1a1a1a;
-		cursor: not-allowed;
-		color: #666;
-	}
-
-	.form-input::placeholder {
-		color: #555;
-	}
-
-	.submit-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.875rem 1.5rem;
-		font-size: 1rem;
-		font-weight: 600;
-		color: white;
-		background: #2d4a6f;
-		border: none;
-		border-radius: 4px;
-		cursor: pointer;
-		transition: background-color 0.15s;
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		background: #345580;
-	}
-
-	.submit-btn:active:not(:disabled) {
-		background: #2a4060;
-	}
-
-	.submit-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-spinner {
-		width: 1rem;
-		height: 1rem;
-		border: 2px solid rgba(255, 255, 255, 0.3);
-		border-top-color: white;
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-</style>

@@ -7,6 +7,7 @@
 	import { getPreviewUrl, getDownloadUrl } from '$lib/api/files';
 	import { getPreviewType, type PreviewType } from '$lib/utils/fileTypes';
 	import { formatFileSize } from '$lib/utils/format';
+	import { Button } from '$lib/components/ui';
 	import VideoPreview from './preview/VideoPreview.svelte';
 	import AudioPreview from './preview/AudioPreview.svelte';
 	import ImagePreview from './preview/ImagePreview.svelte';
@@ -51,38 +52,44 @@
 			window.open(downloadUrl, '_blank');
 		}
 	}
+
+	const headerBtnClass =
+		'w-8 h-8 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary';
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
 {#if file}
-	<div 
-		class="preview-overlay" 
-		class:fullscreen={isFullscreen}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		class="fixed inset-0 bg-black/85 flex items-center justify-center z-[1000] {isFullscreen ? 'p-0' : 'p-10'}"
 		onclick={handleBackdropClick}
+		onkeydown={handleKeydown}
 		role="dialog"
 		aria-modal="true"
 		aria-label="File preview"
+		tabindex="-1"
 	>
-		<div class="preview-container">
+		<div
+			class="flex flex-col w-full h-full bg-surface-primary rounded-lg overflow-hidden shadow-2xl {isFullscreen
+				? 'max-w-none max-h-none rounded-none'
+				: 'max-w-[1200px] max-h-[90vh]'}"
+		>
 			<!-- Header -->
-			<header class="preview-header">
-				<div class="file-info">
-					<span class="file-name" title={file.name}>{file.name}</span>
-					<span class="file-size">{formatFileSize(file.size)}</span>
+			<header class="flex items-center justify-between px-4 py-3 bg-surface-secondary border-b border-border-primary shrink-0">
+				<div class="flex items-center gap-3 min-w-0">
+					<span class="text-sm font-medium text-text-primary overflow-hidden text-ellipsis whitespace-nowrap" title={file.name}>
+						{file.name}
+					</span>
+					<span class="text-xs text-text-secondary shrink-0">{formatFileSize(file.size)}</span>
 				</div>
-				<div class="header-actions">
-					<button 
-						type="button" 
-						class="header-btn" 
-						onclick={handleDownload}
-						title="Download"
-					>
+				<div class="flex items-center gap-1">
+					<button type="button" class={headerBtnClass} onclick={handleDownload} title="Download">
 						<Download size={18} />
 					</button>
-					<button 
-						type="button" 
-						class="header-btn" 
+					<button
+						type="button"
+						class={headerBtnClass}
 						onclick={toggleFullscreen}
 						title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
 					>
@@ -92,19 +99,14 @@
 							<Maximize2 size={18} />
 						{/if}
 					</button>
-					<button 
-						type="button" 
-						class="header-btn close-btn" 
-						onclick={onClose}
-						title="Close"
-					>
+					<button type="button" class="{headerBtnClass} hover:bg-danger hover:text-white" onclick={onClose} title="Close">
 						<X size={18} />
 					</button>
 				</div>
 			</header>
 
 			<!-- Content -->
-			<main class="preview-content">
+			<main class="flex-1 overflow-auto flex items-center justify-center">
 				{#if previewType === 'video'}
 					<VideoPreview url={previewUrl} filename={file.name} />
 				{:else if previewType === 'audio'}
@@ -116,151 +118,15 @@
 				{:else if previewType === 'code' || previewType === 'text'}
 					<CodePreview url={previewUrl} filename={file.name} />
 				{:else}
-					<div class="unsupported">
+					<div class="flex flex-col items-center gap-4 text-text-secondary text-sm">
 						<p>Preview not available for this file type</p>
-						<button type="button" class="download-btn" onclick={handleDownload}>
+						<Button variant="primary" onclick={handleDownload}>
 							<Download size={20} />
 							Download File
-						</button>
+						</Button>
 					</div>
 				{/if}
 			</main>
 		</div>
 	</div>
 {/if}
-
-<style>
-	.preview-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.85);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-		padding: 40px;
-	}
-
-	.preview-overlay.fullscreen {
-		padding: 0;
-	}
-
-	.preview-container {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		height: 100%;
-		max-width: 1200px;
-		max-height: 90vh;
-		background: #1e1e1e;
-		border-radius: 8px;
-		overflow: hidden;
-		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-	}
-
-	.preview-overlay.fullscreen .preview-container {
-		max-width: none;
-		max-height: none;
-		border-radius: 0;
-	}
-
-	.preview-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 12px 16px;
-		background: #252525;
-		border-bottom: 1px solid #333;
-		flex-shrink: 0;
-	}
-
-	.file-info {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		min-width: 0;
-	}
-
-	.file-name {
-		font-size: 14px;
-		font-weight: 500;
-		color: #e0e0e0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.file-size {
-		font-size: 12px;
-		color: #888;
-		flex-shrink: 0;
-	}
-
-	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.header-btn {
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: transparent;
-		border: none;
-		border-radius: 4px;
-		color: #888;
-		cursor: pointer;
-		transition: all 0.1s ease;
-	}
-
-	.header-btn:hover {
-		background: #333;
-		color: #ccc;
-	}
-
-	.close-btn:hover {
-		background: #dc3545;
-		color: #fff;
-	}
-
-	.preview-content {
-		flex: 1;
-		overflow: auto;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.unsupported {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 16px;
-		color: #888;
-		font-size: 14px;
-	}
-
-	.download-btn {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 10px 20px;
-		background: #2d4a6f;
-		border: none;
-		border-radius: 6px;
-		color: #fff;
-		font-size: 14px;
-		cursor: pointer;
-		transition: background-color 0.15s ease;
-	}
-
-	.download-btn:hover {
-		background: #345580;
-	}
-</style>

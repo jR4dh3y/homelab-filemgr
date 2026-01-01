@@ -1,14 +1,11 @@
 /**
  * HTTP client wrapper with JWT token injection and refresh handling
- * Requirements: 7.1
  */
+
+import { tokenStorage } from '$lib/utils/storage';
 
 // API base URL - can be configured via environment variable
 const API_BASE_URL = '/api/v1';
-
-// Token storage keys
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
 
 /**
  * API Error response structure matching backend ErrorResponse
@@ -49,41 +46,35 @@ export interface TokenPair {
  * Get stored access token
  */
 export function getAccessToken(): string | null {
-	if (typeof window === 'undefined') return null;
-	return localStorage.getItem(ACCESS_TOKEN_KEY);
+	return tokenStorage.getAccessToken();
 }
 
 /**
  * Get stored refresh token
  */
 export function getRefreshToken(): string | null {
-	if (typeof window === 'undefined') return null;
-	return localStorage.getItem(REFRESH_TOKEN_KEY);
+	return tokenStorage.getRefreshToken();
 }
 
 /**
  * Store tokens in localStorage
  */
 export function setTokens(accessToken: string, refreshToken: string): void {
-	if (typeof window === 'undefined') return;
-	localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-	localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+	tokenStorage.setTokens(accessToken, refreshToken);
 }
 
 /**
  * Clear stored tokens
  */
 export function clearTokens(): void {
-	if (typeof window === 'undefined') return;
-	localStorage.removeItem(ACCESS_TOKEN_KEY);
-	localStorage.removeItem(REFRESH_TOKEN_KEY);
+	tokenStorage.clearTokens();
 }
 
 /**
  * Check if user is authenticated (has tokens)
  */
 export function isAuthenticated(): boolean {
-	return getAccessToken() !== null;
+	return tokenStorage.hasTokens();
 }
 
 // Flag to prevent multiple simultaneous refresh attempts

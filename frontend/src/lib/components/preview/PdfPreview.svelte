@@ -17,39 +17,15 @@
 	}
 </script>
 
-<div class="pdf-preview">
+<div class="w-full h-full flex items-center justify-center bg-surface-tertiary">
 	{#if error}
-		<div class="error-message">{error}</div>
+		<div class="text-danger text-sm text-center p-5">{error}</div>
 	{:else}
 		<iframe
 			src={url}
 			title={filename}
 			onerror={handleError}
+			class="w-full h-full border-none bg-white"
 		></iframe>
 	{/if}
 </div>
-
-<style>
-	.pdf-preview {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #2a2a2a;
-	}
-
-	iframe {
-		width: 100%;
-		height: 100%;
-		border: none;
-		background: #fff;
-	}
-
-	.error-message {
-		color: #f87171;
-		font-size: 14px;
-		text-align: center;
-		padding: 20px;
-	}
-</style>

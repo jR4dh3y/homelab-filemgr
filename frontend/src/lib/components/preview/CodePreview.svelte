@@ -5,6 +5,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { getMonacoLanguage } from '$lib/utils/fileTypes';
 	import { getFileContent } from '$lib/api/files';
+	import { Spinner } from '$lib/components/ui';
 
 	interface Props {
 		url: string;
@@ -40,17 +41,10 @@
 			// Configure Monaco environment for web workers
 			self.MonacoEnvironment = {
 				getWorker: function (_moduleId: string, label: string) {
-					// Return a basic worker - Monaco will work without specialized workers
-					// but won't have full language features
 					return new Worker(
-						URL.createObjectURL(
-							new Blob(
-								[`self.onmessage = function() {}`],
-								{ type: 'text/javascript' }
-							)
-						)
+						URL.createObjectURL(new Blob([`self.onmessage = function() {}`], { type: 'text/javascript' }))
 					);
-				}
+				},
 			};
 
 			if (containerElement && content !== null) {
@@ -65,8 +59,8 @@
 						'editorLineNumber.foreground': '#5a5a5a',
 						'editorLineNumber.activeForeground': '#c6c6c6',
 						'editor.selectionBackground': '#264f78',
-						'editor.lineHighlightBackground': '#2a2a2a'
-					}
+						'editor.lineHighlightBackground': '#2a2a2a',
+					},
 				});
 
 				editor = monaco.editor.create(containerElement, {
@@ -86,8 +80,8 @@
 						vertical: 'auto',
 						horizontal: 'auto',
 						verticalScrollbarSize: 10,
-						horizontalScrollbarSize: 10
-					}
+						horizontalScrollbarSize: 10,
+					},
 				});
 			}
 		} catch (e) {
@@ -115,71 +109,16 @@
 	});
 </script>
 
-<div class="code-preview">
+<div class="w-full h-full flex flex-col bg-surface-primary">
 	{#if loading}
-		<div class="loading">Loading...</div>
+		<div class="flex items-center justify-center h-full">
+			<Spinner />
+		</div>
 	{:else if error}
-		<div class="error-message">{error}</div>
+		<div class="flex items-center justify-center h-full text-danger text-sm p-5">{error}</div>
 	{:else if !editor && content !== null}
 		<!-- Fallback: plain text display if Monaco fails to load -->
-		<pre class="fallback-code">{content}</pre>
+		<pre class="flex-1 m-0 p-4 overflow-auto bg-surface-primary text-text-primary font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words">{content}</pre>
 	{/if}
-	<div 
-		bind:this={containerElement} 
-		class="editor-container"
-		class:hidden={loading || error || (!editor && content !== null)}
-	></div>
+	<div bind:this={containerElement} class="flex-1 w-full min-h-0 {loading || error || (!editor && content !== null) ? 'hidden' : ''}"></div>
 </div>
-
-<style>
-	.code-preview {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-		background: #1e1e1e;
-	}
-
-	.editor-container {
-		flex: 1;
-		width: 100%;
-		min-height: 0;
-	}
-
-	.editor-container.hidden {
-		display: none;
-	}
-
-	.loading {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		color: #888;
-		font-size: 14px;
-	}
-
-	.error-message {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		color: #f87171;
-		font-size: 14px;
-		padding: 20px;
-	}
-
-	.fallback-code {
-		flex: 1;
-		margin: 0;
-		padding: 16px;
-		overflow: auto;
-		background: #1e1e1e;
-		color: #d4d4d4;
-		font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
-		font-size: 13px;
-		line-height: 1.5;
-		white-space: pre-wrap;
-		word-wrap: break-word;
-	}
-</style>
