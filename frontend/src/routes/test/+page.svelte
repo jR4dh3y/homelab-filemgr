@@ -370,6 +370,7 @@
 					uploads={mockUploads}
 					onCancel={(id) => console.log('Cancel upload:', id)}
 					onRemove={(id) => console.log('Remove upload:', id)}
+					onClearCompleted={() => console.log('Clear completed uploads')}
 				/>
 			</div>
 		</div>
@@ -382,6 +383,7 @@
 					jobs={mockJobs}
 					onCancel={(id) => console.log('Cancel job:', id)}
 					onRemove={(id) => console.log('Remove job:', id)}
+					onClearCompleted={() => console.log('Clear completed jobs')}
 				/>
 			</div>
 		</div>
