@@ -24,6 +24,7 @@
 	import UploadDropzone from '$lib/components/UploadDropzone.svelte';
 	import UploadProgress from '$lib/components/UploadProgress.svelte';
 	import JobMonitor from '$lib/components/JobMonitor.svelte';
+	import PicoLogo from '$lib/components/PicoLogo.svelte';
 	import { FlaskConical, Bell } from 'lucide-svelte';
 	import type { FileInfo, MountPoint, DriveStats } from '$lib/api/files';
 	import type { Job } from '$lib/api/jobs';
@@ -103,6 +104,29 @@
 <div class="min-h-screen bg-surface-primary text-text-primary p-8">
 	<h1 class="text-3xl font-bold mb-8 flex items-center gap-3"><FlaskConical size={32} /> Component Test Page</h1>
 	<p class="text-text-secondary mb-8">Test all UI components without backend connection</p>
+
+	<!-- Section: Branding -->
+	<section class="mb-12">
+		<h2 class="text-2xl font-semibold mb-6 pb-2 border-b border-border-primary">Branding</h2>
+		
+		<div class="mb-8">
+			<h3 class="text-lg font-medium mb-4 text-text-secondary">PicoLogo</h3>
+			<div class="flex flex-wrap gap-8 items-end">
+				<div class="flex flex-col items-center gap-2">
+					<PicoLogo size="sm" />
+					<span class="text-xs text-text-muted">Small</span>
+				</div>
+				<div class="flex flex-col items-center gap-2">
+					<PicoLogo size="md" />
+					<span class="text-xs text-text-muted">Medium</span>
+				</div>
+				<div class="flex flex-col items-center gap-2">
+					<PicoLogo size="lg" />
+					<span class="text-xs text-text-muted">Large</span>
+				</div>
+			</div>
+		</div>
+	</section>
 
 	<!-- Section: Base UI Components -->
 	<section class="mb-12">
