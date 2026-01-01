@@ -5,7 +5,7 @@
 	import type { DriveStats } from '$lib/api/files';
 	import { HardDrive } from 'lucide-svelte';
 	import { formatFileSize } from '$lib/utils/format';
-	import { Badge } from '$lib/components/ui';
+	import { Badge, ProgressBar } from '$lib/components/ui';
 
 	interface Props {
 		drive: DriveStats;
@@ -18,41 +18,45 @@
 	const totalFormatted = $derived(formatFileSize(drive.totalBytes));
 	const freeFormatted = $derived(formatFileSize(drive.freeBytes));
 
-	// Color based on usage percentage
-	const barColorClass = $derived.by(() => {
-		if (drive.usedPct >= 90) return 'bg-danger';
-		if (drive.usedPct >= 75) return 'bg-warning';
-		return 'bg-accent';
+	// Variant based on usage percentage
+	const progressVariant = $derived.by(() => {
+		if (drive.usedPct >= 90) return 'danger' as const;
+		if (drive.usedPct >= 75) return 'warning' as const;
+		return 'default' as const;
 	});
 </script>
 
 <button
 	type="button"
-	class="flex flex-col gap-3 p-4 bg-surface-secondary border border-border-primary rounded-md cursor-pointer transition-all duration-150 text-left w-full hover:bg-surface-tertiary hover:border-border-focus"
+	class="flex items-stretch gap-3 p-4 bg-surface-secondary border border-border-primary rounded-lg cursor-pointer transition-all duration-150 text-left w-full hover:bg-surface-tertiary hover:border-border-focus"
 	onclick={onClick}
 >
-	<div class="flex items-center gap-3">
-		<div class="flex items-center justify-center w-10 h-10 bg-surface-elevated rounded-md text-text-secondary">
-			<HardDrive size={24} />
-		</div>
-		<div class="flex flex-col gap-0.5">
-			<span class="text-sm font-medium text-text-primary">{drive.name}</span>
-			{#if drive.readOnly}
-				<Badge>Read-only</Badge>
-			{/if}
-		</div>
+	<!-- Icon -->
+	<div class="shrink-0 w-16 flex items-center justify-center rounded bg-surface-elevated text-text-secondary">
+		<HardDrive size={24} />
 	</div>
 
-	<div class="flex flex-col gap-1.5">
-		<div class="h-1.5 bg-surface-elevated rounded-full overflow-hidden">
-			<div class="{barColorClass} h-full rounded-full transition-all duration-300" style="width: {drive.usedPct}%"></div>
+	<!-- Content -->
+	<div class="flex-1 min-w-0 flex flex-col gap-1 py-0.5">
+		<div class="flex items-center justify-between gap-2">
+			<span class="text-sm font-medium text-text-primary">{drive.name}</span>
+			<Badge variant="default">{totalFormatted}</Badge>
 		</div>
-		<div class="flex justify-between text-xs">
-			<span class="text-text-secondary">{usedFormatted} used</span>
-			<span class="text-text-muted">{freeFormatted} free</span>
+		<div class="text-xs text-text-muted">
+			{usedFormatted} used · {freeFormatted} free
+			{#if drive.readOnly}
+				<span class="text-warning ml-1">· Read-only</span>
+			{/if}
 		</div>
-		<div class="text-[11px] text-text-muted">
-			{totalFormatted} total
+		
+		<!-- Progress bar with percentage -->
+		<div class="flex items-center gap-3">
+			<div class="flex-1">
+				<ProgressBar value={drive.usedPct} size="sm" variant={progressVariant} />
+			</div>
+			<span class="text-[11px] shrink-0 {drive.usedPct >= 90 ? 'text-danger' : drive.usedPct >= 75 ? 'text-warning' : 'text-text-muted'}">
+				{drive.usedPct}%
+			</span>
 		</div>
 	</div>
 </button>
