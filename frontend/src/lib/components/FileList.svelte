@@ -29,6 +29,7 @@
 		sortDir = 'asc',
 		selectedPaths = new SvelteSet<string>(),
 		isLoading = false,
+		compactMode = false,
 		onItemClick,
 		onSortChange,
 		onSelectionChange
@@ -38,6 +39,7 @@
 		sortDir?: SortDir;
 		selectedPaths?: Set<string>;
 		isLoading?: boolean;
+		compactMode?: boolean;
 		onItemClick?: (item: FileInfo) => void;
 		onSortChange?: (field: SortField, dir: SortDir) => void;
 		onSelectionChange?: (paths: Set<string>) => void;
@@ -125,7 +127,7 @@
 	}
 </script>
 
-<div class="file-list">
+<div class="file-list" class:compact={compactMode}>
 	{#if isLoading}
 		<div class="loading-overlay">
 			<div class="spinner"></div>
@@ -427,5 +429,22 @@
 
 	.empty-text {
 		font-size: 13px;
+	}
+
+	/* Compact mode */
+	.file-list.compact .file-table th {
+		padding: 6px 12px;
+	}
+
+	.file-list.compact .file-table td {
+		padding: 4px 12px;
+	}
+
+	.file-list.compact .file-icon {
+		width: 16px;
+	}
+
+	.file-list.compact .name-cell {
+		gap: 6px;
 	}
 </style>

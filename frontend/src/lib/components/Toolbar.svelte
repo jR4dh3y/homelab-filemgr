@@ -2,7 +2,7 @@
 	/**
 	 * Toolbar component - navigation buttons and path bar
 	 */
-	import { ChevronLeft, ChevronRight, ChevronUp, Home, RefreshCw } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, ChevronUp, Home, RefreshCw, Settings } from 'lucide-svelte';
 
 	interface Props {
 		pathSegments?: string[];
@@ -14,6 +14,7 @@
 		onUp?: () => void;
 		onNavigate?: (path: string) => void;
 		onRefresh?: () => void;
+		onSettings?: () => void;
 	}
 
 	let {
@@ -25,7 +26,8 @@
 		onForward,
 		onUp,
 		onNavigate,
-		onRefresh
+		onRefresh,
+		onSettings
 	}: Props = $props();
 
 	function buildPath(index: number): string {
@@ -106,6 +108,9 @@
 	<div class="action-buttons">
 		<button type="button" class="action-btn" onclick={onRefresh} title="Refresh">
 			<RefreshCw size={16} />
+		</button>
+		<button type="button" class="action-btn" onclick={onSettings} title="Settings">
+			<Settings size={16} />
 		</button>
 	</div>
 </div>

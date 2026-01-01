@@ -4,6 +4,7 @@
 	 * Requirements: 1.1, 1.2
 	 */
 	import { createQuery } from '@tanstack/svelte-query';
+	import { goto } from '$app/navigation';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Toolbar from '$lib/components/Toolbar.svelte';
 	import FileList from '$lib/components/FileList.svelte';
@@ -17,6 +18,7 @@
 		listOptionsStore,
 		fileQueryKeys
 	} from '$lib/stores/files';
+	import { settingsStore } from '$lib/stores/settings';
 	import { listRoots, listDirectory, search, getDriveStats } from '$lib/api/files';
 	import { canPreview } from '$lib/utils/fileTypes';
 	import type { SortField, SortDir } from '$lib/types/files';
@@ -43,6 +45,7 @@
 	const path = $derived($currentPath);
 	const segments = $derived($pathSegments);
 	const options = $derived($listOptionsStore);
+	const settings = $derived($settingsStore);
 
 	// Query for mount points (roots)
 	const rootsQuery = createQuery<RootsResponse>(() => ({
@@ -81,12 +84,22 @@
 	// Check if we're at root (This Server view)
 	const isAtRoot = $derived(path === '');
 
-	// Display items for file list (when not at root)
+	// Display items for file list (when not at root) - filter hidden files based on settings
 	const displayItems = $derived.by(() => {
+		let items: FileInfo[];
+		
 		if (searchQuery && searchResults.length > 0) {
-			return searchResults;
+			items = searchResults;
+		} else {
+			items = fileList?.items ?? [];
 		}
-		return fileList?.items ?? [];
+
+		// Filter hidden files if setting is disabled
+		if (!settings.showHiddenFiles) {
+			items = items.filter(item => !item.name.startsWith('.'));
+		}
+
+		return items;
 	});
 
 	const itemCount = $derived(isAtRoot ? driveStats.length : displayItems.length);
@@ -138,6 +151,10 @@
 		} else {
 			directoryQuery.refetch();
 		}
+	}
+
+	function handleSettings() {
+		goto('/settings');
 	}
 
 	function handleFileClick(file: FileInfo) {
@@ -192,6 +209,7 @@
 			onUp={handleUp}
 			onNavigate={handleNavigate}
 			onRefresh={handleRefresh}
+			onSettings={handleSettings}
 		/>
 
 		<!-- File list or Drive cards -->
@@ -222,6 +240,7 @@
 					sortDir={options.sortDir}
 					{selectedPaths}
 					{isLoading}
+					compactMode={settings.compactMode}
 					onItemClick={handleFileClick}
 					onSortChange={handleSortChange}
 					onSelectionChange={handleSelectionChange}
