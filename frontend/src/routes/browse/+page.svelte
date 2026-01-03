@@ -8,17 +8,19 @@
 	import Toolbar from '$lib/components/Toolbar.svelte';
 	import FileList from '$lib/components/FileList.svelte';
 	import StatusBar from '$lib/components/StatusBar.svelte';
-	import DriveCard from '$lib/components/DriveCard.svelte';
+	import SystemDriveCard from '$lib/components/SystemDriveCard.svelte';
 	import FilePreview from '$lib/components/FilePreview.svelte';
 	import { Spinner, Modal, Input, Button } from '$lib/components/ui';
 	import { pathStore, currentPath, pathSegments, listOptionsStore, fileQueryKeys } from '$lib/stores/files';
 	import { settingsStore } from '$lib/stores/settings';
 	import { clipboardStore } from '$lib/stores/clipboard.svelte';
-	import { listRoots, listDirectory, search, getDriveStats, rename, deleteFile, getDownloadUrl } from '$lib/api/files';
+	import { listRoots, listDirectory, search, rename, deleteFile, getDownloadUrl } from '$lib/api/files';
+	import { getSystemDrives, type SystemDrivesResponse, type SystemDrive } from '$lib/api/system';
+	import { CONFIG } from '$lib/config';
 	import { createCopyJob, createMoveJob, createDeleteJob } from '$lib/api/jobs';
 	import { formatFileSize, formatFileDate } from '$lib/utils/format';
 	import type { SortField, SortDir } from '$lib/types/files';
-	import type { FileInfo, FileList as FileListType, RootsResponse, SearchResponse, DriveStatsResponse } from '$lib/api/files';
+	import type { FileInfo, FileList as FileListType, RootsResponse, SearchResponse } from '$lib/api/files';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	const queryClient = useQueryClient();
@@ -59,9 +61,9 @@
 		queryFn: () => listRoots(),
 	}));
 
-	const driveStatsQuery = createQuery<DriveStatsResponse>(() => ({
-		queryKey: ['files', 'stats'],
-		queryFn: () => getDriveStats(),
+	const systemDrivesQuery = createQuery<SystemDrivesResponse>(() => ({
+		queryKey: ['system', 'drives'],
+		queryFn: () => getSystemDrives(),
 		enabled: path === '',
 	}));
 
@@ -81,7 +83,7 @@
 	const fileList = $derived(directoryQuery.data ?? null);
 	const searchResults = $derived(searchQueryResult.data?.results ?? []);
 	const roots = $derived(rootsQuery.data?.roots ?? []);
-	const driveStats = $derived(driveStatsQuery.data?.drives ?? []);
+	const systemDrives = $derived(systemDrivesQuery.data?.drives ?? []);
 	const isAtRoot = $derived(path === '');
 
 	// Clipboard state for context menu
@@ -109,7 +111,7 @@
 		return items;
 	});
 
-	const itemCount = $derived(isAtRoot ? driveStats.length : displayItems.length);
+	const itemCount = $derived(isAtRoot ? systemDrives.length : displayItems.length);
 	const selectedCount = $derived(selectedPaths.size);
 	const canGoBack = $derived(historyIndex > 0);
 	const canGoForward = $derived(historyIndex < historyStack.length - 1);
@@ -151,7 +153,7 @@
 
 	function handleRefresh() {
 		if (isAtRoot) {
-			driveStatsQuery.refetch();
+			systemDrivesQuery.refetch();
 		} else {
 			directoryQuery.refetch();
 		}
@@ -351,17 +353,24 @@
 				<!-- This Server view - show drive cards -->
 				<div class="p-6">
 					<h2 class="text-lg font-medium text-text-primary m-0 mb-5">Storage Devices</h2>
-					{#if driveStatsQuery.isLoading}
+					{#if systemDrivesQuery.isLoading}
 						<div class="flex items-center gap-2 text-text-secondary text-sm py-5">
 							<Spinner size="sm" />
 							<span>Loading drives...</span>
 						</div>
-					{:else if driveStats.length === 0}
-						<div class="text-text-secondary text-sm py-5">No storage devices configured</div>
+					{:else if systemDrives.length === 0}
+						<div class="text-text-secondary text-sm py-5">No storage devices found</div>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{#each driveStats as drive (drive.name)}
-								<DriveCard {drive} onClick={() => handleNavigate(drive.name)} />
+							{#each systemDrives as drive (drive.mountPoint)}
+								<SystemDriveCard {drive} onClick={() => {
+									// Map system mount point to browsable path via host root mount
+									const hostRoot = CONFIG.paths.hostRootMount;
+									const browsePath = drive.mountPoint === '/' 
+										? hostRoot 
+										: hostRoot + drive.mountPoint;
+									handleNavigate(browsePath);
+								}} />
 							{/each}
 						</div>
 					{/if}

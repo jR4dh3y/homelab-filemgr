@@ -17,7 +17,7 @@
 	import Toolbar from '$lib/components/Toolbar.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import StatusBar from '$lib/components/StatusBar.svelte';
-	import DriveCard from '$lib/components/DriveCard.svelte';
+	import SystemDriveCard from '$lib/components/SystemDriveCard.svelte';
 	import FileList from '$lib/components/FileList.svelte';
 	import Breadcrumb from '$lib/components/Breadcrumb.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
@@ -28,7 +28,8 @@
 	import type { ContextMenuItem } from '$lib/components/ui/ContextMenu.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import { FlaskConical, Bell, Copy, Scissors, ClipboardPaste, Trash2, Pencil } from 'lucide-svelte';
-	import type { FileInfo, MountPoint, DriveStats } from '$lib/api/files';
+	import type { FileInfo, MountPoint } from '$lib/api/files';
+	import type { SystemDrive } from '$lib/api/system';
 	import type { Job } from '$lib/api/jobs';
 	import type { UploadProgress as UploadProgressType } from '$lib/utils/upload';
 
@@ -64,10 +65,10 @@
 		{ name: 'Downloads', readOnly: false },
 	];
 
-	const mockDriveStats: DriveStats[] = [
-		{ name: 'Home', path: '/home', totalBytes: 500000000000, usedBytes: 350000000000, freeBytes: 150000000000, usedPct: 70, readOnly: false },
-		{ name: 'Media', path: '/media', totalBytes: 2000000000000, usedBytes: 1800000000000, freeBytes: 200000000000, usedPct: 90, readOnly: true },
-		{ name: 'Downloads', path: '/downloads', totalBytes: 100000000000, usedBytes: 25000000000, freeBytes: 75000000000, usedPct: 25, readOnly: false },
+	const mockSystemDrives: SystemDrive[] = [
+		{ device: '/dev/sda1', mountPoint: '/home', fsType: 'ext4', totalBytes: 500000000000, usedBytes: 350000000000, freeBytes: 150000000000, usedPct: 70 },
+		{ device: '/dev/sdb1', mountPoint: '/media/storage', fsType: 'ntfs', totalBytes: 2000000000000, usedBytes: 1800000000000, freeBytes: 200000000000, usedPct: 90 },
+		{ device: '/dev/sdc1', mountPoint: '/mnt/downloads', fsType: 'ext4', totalBytes: 100000000000, usedBytes: 25000000000, freeBytes: 75000000000, usedPct: 25 },
 	];
 
 	const mockFiles: FileInfo[] = [
@@ -383,12 +384,12 @@
 			</div>
 		</div>
 
-		<!-- DriveCard -->
+		<!-- SystemDriveCard -->
 		<div class="mb-8">
-			<h3 class="text-lg font-medium mb-4 text-text-secondary">DriveCard</h3>
+			<h3 class="text-lg font-medium mb-4 text-text-secondary">SystemDriveCard</h3>
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				{#each mockDriveStats as drive}
-					<DriveCard {drive} onClick={() => console.log('Drive clicked:', drive.name)} />
+				{#each mockSystemDrives as drive}
+					<SystemDriveCard {drive} onClick={() => console.log('Drive clicked:', drive.mountPoint)} />
 				{/each}
 			</div>
 		</div>

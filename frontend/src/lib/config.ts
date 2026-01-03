@@ -38,6 +38,10 @@ export const CONFIG = {
 		/** Debounce delay for search input */
 		searchDebounceMs: 300,
 	},
+	paths: {
+		/** Mount point name that maps to the host root filesystem in Docker */
+		hostRootMount: 'root',
+	},
 } as const;
 
 /** Storage keys for localStorage */

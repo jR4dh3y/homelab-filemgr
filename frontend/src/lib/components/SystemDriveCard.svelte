@@ -9,9 +9,10 @@
 
 	interface Props {
 		drive: SystemDrive;
+		onClick?: () => void;
 	}
 
-	let { drive }: Props = $props();
+	let { drive, onClick }: Props = $props();
 
 	const usedFormatted = $derived(formatFileSize(drive.usedBytes));
 	const totalFormatted = $derived(formatFileSize(drive.totalBytes));
@@ -28,11 +29,13 @@
 	const isRootDrive = $derived(drive.mountPoint === '/' || drive.mountPoint.match(/^[A-Z]:\\$/));
 </script>
 
-<div
-	class="flex items-stretch gap-3 p-4 bg-surface-secondary border border-border-primary rounded-lg w-full"
+<button
+	type="button"
+	class="flex items-stretch gap-3 p-4 bg-surface-secondary border border-border-primary rounded-lg w-full text-left cursor-pointer transition-all duration-150 hover:bg-surface-tertiary hover:border-border-focus"
+	onclick={onClick}
 >
 	<!-- Icon -->
-	<div class="shrink-0 w-14 flex items-center justify-center rounded bg-surface-elevated text-text-secondary">
+	<div class="shrink-0 w-22 flex items-center justify-center rounded bg-surface-elevated text-text-secondary">
 		{#if isRootDrive}
 			<Database size={22} />
 		{:else}
@@ -70,4 +73,4 @@
 			</span>
 		</div>
 	</div>
-</div>
+</button>
