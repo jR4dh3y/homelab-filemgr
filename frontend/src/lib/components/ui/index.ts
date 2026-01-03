@@ -12,3 +12,5 @@ export { default as Modal } from './Modal.svelte';
 export { default as Spinner } from './Spinner.svelte';
 export { default as Badge } from './Badge.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
+export { default as ContextMenu } from './ContextMenu.svelte';
+export type { ContextMenuItem } from './ContextMenu.svelte';

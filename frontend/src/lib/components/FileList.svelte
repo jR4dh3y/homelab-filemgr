@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * FileList component with sortable columns - FilePilot style
-	 * Requirements: 1.1, 1.2
+	 * Requirements: 1.1, 1.2, Context Menu
 	 */
 
 	import type { FileInfo } from '$lib/api/files';
@@ -9,8 +9,8 @@
 	import { formatFileSize, formatFileDate } from '$lib/utils/format';
 	import { getFileTypeDescription, getFileIcon } from '$lib/utils/fileTypes';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { Spinner } from '$lib/components/ui';
-	import { FolderOpen } from 'lucide-svelte';
+	import { Spinner, ContextMenu, type ContextMenuItem } from '$lib/components/ui';
+	import { FolderOpen, Copy, Scissors, ClipboardPaste, Pencil, Trash2, Download, Info } from 'lucide-svelte';
 
 	let {
 		items = [],
@@ -19,9 +19,12 @@
 		selectedPaths = new SvelteSet<string>(),
 		isLoading = false,
 		compactMode = false,
+		cutPaths = new SvelteSet<string>(),
+		canPaste = false,
 		onItemClick,
 		onSortChange,
 		onSelectionChange,
+		onContextMenuAction,
 	}: {
 		items?: FileInfo[];
 		sortBy?: SortField;
@@ -29,10 +32,16 @@
 		selectedPaths?: Set<string>;
 		isLoading?: boolean;
 		compactMode?: boolean;
+		cutPaths?: Set<string>;
+		canPaste?: boolean;
 		onItemClick?: (item: FileInfo) => void;
 		onSortChange?: (field: SortField, dir: SortDir) => void;
 		onSelectionChange?: (paths: Set<string>) => void;
+		onContextMenuAction?: (action: string, items: FileInfo[]) => void;
 	} = $props();
+
+	// Context menu state
+	let contextMenu = $state<{ x: number; y: number; items: FileInfo[] } | null>(null);
 
 	function handleSort(field: SortField) {
 		if (sortBy === field) {
@@ -73,6 +82,54 @@
 		}
 	}
 
+	function handleContextMenu(item: FileInfo, event: MouseEvent) {
+		event.preventDefault();
+		
+		// If right-clicked item is not selected, select only that item
+		if (!selectedPaths.has(item.path)) {
+			const newSelection = new SvelteSet<string>([item.path]);
+			onSelectionChange?.(newSelection);
+		}
+		
+		// Get all selected items for context menu
+		const selectedItems = items.filter((i) => selectedPaths.has(i.path) || i.path === item.path);
+		
+		contextMenu = {
+			x: event.clientX,
+			y: event.clientY,
+			items: selectedItems.length > 0 ? selectedItems : [item],
+		};
+	}
+
+	function handleContextMenuClose() {
+		contextMenu = null;
+	}
+
+	function handleContextMenuSelect(action: string) {
+		if (contextMenu && onContextMenuAction) {
+			onContextMenuAction(action, contextMenu.items);
+		}
+		contextMenu = null;
+	}
+
+	function getContextMenuItems(targetItems: FileInfo[]): ContextMenuItem[] {
+		const hasMultiple = targetItems.length > 1;
+		const hasFolder = targetItems.some((i) => i.isDir);
+		const allFolders = targetItems.every((i) => i.isDir);
+		
+		return [
+			{ id: 'copy', label: 'Copy', icon: Copy, shortcut: 'Ctrl+C' },
+			{ id: 'cut', label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X' },
+			{ id: 'paste', label: 'Paste', icon: ClipboardPaste, shortcut: 'Ctrl+V', disabled: !canPaste },
+			{ id: 'separator-1', label: '', separator: true },
+			{ id: 'rename', label: 'Rename', icon: Pencil, shortcut: 'F2', disabled: hasMultiple },
+			{ id: 'delete', label: 'Delete', icon: Trash2, shortcut: 'Del' },
+			{ id: 'separator-2', label: '', separator: true },
+			{ id: 'download', label: 'Download', icon: Download, disabled: hasFolder },
+			{ id: 'properties', label: 'Properties', icon: Info, disabled: hasMultiple },
+		];
+	}
+
 	function getSortIndicator(field: SortField): string {
 		if (sortBy !== field) return '';
 		return sortDir === 'asc' ? '▲' : '▼';
@@ -80,6 +137,10 @@
 
 	function isSelected(path: string): boolean {
 		return selectedPaths.has(path);
+	}
+
+	function isCut(path: string): boolean {
+		return cutPaths.has(path);
 	}
 
 	const thClass =
@@ -160,10 +221,11 @@
 					<tr
 						class="cursor-default transition-colors duration-50 hover:bg-surface-secondary focus:outline-none focus:bg-selection {isSelected(item.path)
 							? 'bg-selection hover:bg-selection-hover'
-							: ''}"
+							: ''} {isCut(item.path) ? 'opacity-50' : ''}"
 						onclick={(e) => handleRowClick(item, e)}
 						onkeydown={(e) => handleKeyDown(item, e)}
 						ondblclick={() => handleDoubleClick(item)}
+						oncontextmenu={(e) => handleContextMenu(item, e)}
 						tabindex="0"
 						aria-selected={isSelected(item.path)}
 					>
@@ -190,3 +252,14 @@
 		</tbody>
 	</table>
 </div>
+
+<!-- Context Menu -->
+{#if contextMenu}
+	<ContextMenu
+		items={getContextMenuItems(contextMenu.items)}
+		x={contextMenu.x}
+		y={contextMenu.y}
+		onSelect={handleContextMenuSelect}
+		onClose={handleContextMenuClose}
+	/>
+{/if}

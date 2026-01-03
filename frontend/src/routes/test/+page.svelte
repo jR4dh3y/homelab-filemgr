@@ -25,7 +25,9 @@
 	import UploadProgress from '$lib/components/UploadProgress.svelte';
 	import JobMonitor from '$lib/components/JobMonitor.svelte';
 	import PicoLogo from '$lib/components/PicoLogo.svelte';
-	import { FlaskConical, Bell } from 'lucide-svelte';
+	import type { ContextMenuItem } from '$lib/components/ui/ContextMenu.svelte';
+	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+	import { FlaskConical, Bell, Copy, Scissors, ClipboardPaste, Trash2, Pencil } from 'lucide-svelte';
 	import type { FileInfo, MountPoint, DriveStats } from '$lib/api/files';
 	import type { Job } from '$lib/api/jobs';
 	import type { UploadProgress as UploadProgressType } from '$lib/utils/upload';
@@ -36,6 +38,20 @@
 	let toggleChecked = $state(false);
 	let modalOpen = $state(false);
 	let progressValue = $state(65);
+
+	// Context Menu State
+	let contextMenuOpen = $state(false);
+	let contextMenuX = $state(0);
+	let contextMenuY = $state(0);
+	let contextMenuItems: ContextMenuItem[] = $state([
+		{ id: 'copy', label: 'Copy', icon: Copy, shortcut: 'Ctrl+C' },
+		{ id: 'cut', label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X' },
+		{ id: 'paste', label: 'Paste', icon: ClipboardPaste, shortcut: 'Ctrl+V', disabled: true },
+		{ id: 'sep1', label: '', separator: true },
+		{ id: 'delete', label: 'Delete', icon: Trash2, shortcut: 'Del' },
+		{ id: 'rename', label: 'Rename', icon: Pencil, shortcut: 'F2' },
+	]);
+
 
 	// Toolbar state
 	let toolbarPath = $state(['Documents', 'Projects', 'Frontend']);
@@ -271,6 +287,41 @@
 					<Button variant="primary" onclick={() => modalOpen = false}>Confirm</Button>
 				{/snippet}
 			</Modal>
+		</div>
+	</section>
+
+	<!-- Section: Context Menu -->
+	<section class="mb-12">
+		<h2 class="text-2xl font-semibold mb-6 pb-2 border-b border-border-primary">Context Menu</h2>
+
+		<div class="mb-8">
+			<h3 class="text-lg font-medium mb-4 text-text-secondary">Right-click anywhere to open context menu</h3>
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="w-full h-48 border-2 border-dashed border-border-secondary rounded-lg flex items-center justify-center text-text-muted"
+				role="region"
+				oncontextmenu={(e) => {
+					e.preventDefault();
+					contextMenuX = e.clientX;
+					contextMenuY = e.clientY;
+					contextMenuOpen = true;
+				}}
+			>
+				Right-click Area
+			</div>
+
+			{#if contextMenuOpen}
+				<ContextMenu
+					x={contextMenuX}
+					y={contextMenuY}
+					items={contextMenuItems}
+					onSelect={(id) => {
+						console.log('Context menu item selected:', id);
+						contextMenuOpen = false;
+					}}
+					onClose={() => contextMenuOpen = false}
+				/>
+			{/if}
 		</div>
 	</section>
 
