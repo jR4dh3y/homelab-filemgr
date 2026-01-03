@@ -18,7 +18,7 @@
 	import { getSystemDrives, type SystemDrivesResponse, type SystemDrive } from '$lib/api/system';
 	import { CONFIG } from '$lib/config';
 	import { createCopyJob, createMoveJob, createDeleteJob } from '$lib/api/jobs';
-	import { formatFileSize, formatFileDate } from '$lib/utils/format';
+	import { formatFileSize, formatFileDate, mapSystemMountToBrowsePath } from '$lib/utils/format';
 	import type { SortField, SortDir } from '$lib/types/files';
 	import type { FileInfo, FileList as FileListType, RootsResponse, SearchResponse } from '$lib/api/files';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -365,10 +365,10 @@
 							{#each systemDrives as drive (drive.mountPoint)}
 								<SystemDriveCard {drive} onClick={() => {
 									// Map system mount point to browsable path via host root mount
-									const hostRoot = CONFIG.paths.hostRootMount;
-									const browsePath = drive.mountPoint === '/' 
-										? hostRoot 
-										: hostRoot + drive.mountPoint;
+									const browsePath = mapSystemMountToBrowsePath(drive.mountPoint);
+	
+	
+	
 									handleNavigate(browsePath);
 								}} />
 							{/each}

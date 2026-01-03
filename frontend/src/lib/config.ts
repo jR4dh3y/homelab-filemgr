@@ -41,6 +41,15 @@ export const CONFIG = {
 	paths: {
 		/** Mount point name that maps to the host root filesystem in Docker */
 		hostRootMount: 'root',
+		/** 
+		 * Mappings from system mount points (as returned by df) to browsable paths.
+		 * Order matters - first match wins, so more specific paths should come first.
+		 */
+		mountPointMappings: [
+			{ systemPath: '/media/devmon', browsePath: 'drives' },
+			{ systemPath: '/home/user', browsePath: 'home' },
+			{ systemPath: '/host_root', browsePath: 'root' },
+		] as const,
 	},
 } as const;
 

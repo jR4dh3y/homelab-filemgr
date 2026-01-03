@@ -36,7 +36,7 @@ var ExcludedMountPointPrefixes = []string{
 	"/var/lib/docker",         // Docker internal paths
 	"/snap/",                  // Snap packages
 	"/boot/",                  // Boot partition
-	// Host paths via /host_root bind mount
+	// Host paths via /host_root bind mount - exclude duplicates and system paths
 	"/host_root/etc/",         // Host's etc directory
 	"/host_root/proc/",        // Host's proc
 	"/host_root/sys/",         // Host's sys
@@ -45,6 +45,9 @@ var ExcludedMountPointPrefixes = []string{
 	"/host_root/var/lib/docker", // Host's docker
 	"/host_root/snap/",        // Host's snap packages
 	"/host_root/boot/",        // Host's boot partition
+	// These are duplicates - already accessible via direct mounts
+	"/host_root/media/",       // Already accessible via /media/devmon mount
+	"/host_root/home/",        // Already accessible via /home/user mount
 }
 
 // ExcludedMountPointSuffixes contains mount point path suffixes that should be filtered out
@@ -57,12 +60,10 @@ var ExcludedMountPointSuffixes = []string{
 // if they pass the exclusion checks above
 var AllowedMountPointPrefixes = []string{
 	"/",                  // Root filesystem (exact match handled specially)
-	"/home",              // User home directories
-	"/media/",            // Removable media
-	"/mnt/",              // Manual mounts
+	"/home",              // User home directories (container)
+	"/media/",            // Removable media (container)
+	"/mnt/",              // Manual mounts (container)
 	"/host_root",         // Host root (exact match - the main host filesystem)
-	"/host_root/home",    // Host home directories
-	"/host_root/media/",  // Host removable media
-	"/host_root/mnt/",    // Host manual mounts
+	"/host_root/mnt/",    // Host manual mounts (rclone, etc. that aren't in /media)
 }
 
