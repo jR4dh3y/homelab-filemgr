@@ -229,21 +229,23 @@
 						tabindex="0"
 						aria-selected={isSelected(item.path)}
 					>
-						<td class="{tdClass} flex items-center gap-2">
-							<span class="flex items-center justify-center shrink-0 w-5 {item.isDir ? 'text-folder' : 'text-text-secondary'}">
-								<IconComponent size={16} />
-							</span>
-							<span class="overflow-hidden text-ellipsis whitespace-nowrap {item.isDir ? 'text-folder' : ''}" title={item.name}>
-								{item.name}
-							</span>
+						<td class="{tdClass} min-w-[200px]">
+							<div class="flex items-center gap-2">
+								<span class="flex items-center justify-center shrink-0 w-5 {item.isDir ? 'text-folder' : 'text-text-secondary'}">
+									<IconComponent size={16} />
+								</span>
+								<span class="overflow-hidden text-ellipsis whitespace-nowrap {item.isDir ? 'text-folder' : ''}" title={item.name}>
+									{item.name}
+								</span>
+							</div>
 						</td>
-						<td class="{tdClass} text-text-secondary">
+						<td class="{tdClass} w-[120px] text-text-secondary">
 							{item.isDir ? 'Folder' : getFileTypeDescription(item.name)}
 						</td>
-						<td class="{tdClass} text-right tabular-nums text-text-secondary">
+						<td class="{tdClass} w-[100px] text-right tabular-nums text-text-secondary">
 							{item.isDir ? '' : formatFileSize(item.size)}
 						</td>
-						<td class="{tdClass} whitespace-nowrap text-text-secondary">
+						<td class="{tdClass} w-[150px] whitespace-nowrap text-text-secondary">
 							{formatFileDate(item.modTime)}
 						</td>
 					</tr>
