@@ -133,6 +133,11 @@ func parseDfOutput(output []byte, kilobytes bool) ([]model.SystemDrive, error) {
 			continue
 		}
 
+		// Apply storage device filtering
+		if !isStorageDevice(mountPoint, device, fsType) {
+			continue
+		}
+
 		// Calculate usage percentage
 		usedPct := float64(0)
 		if total > 0 {
@@ -151,6 +156,61 @@ func parseDfOutput(output []byte, kilobytes bool) ([]model.SystemDrive, error) {
 	}
 
 	return drives, scanner.Err()
+}
+
+// isStorageDevice checks if a mount point represents a real storage device
+// that should be shown to the user (not Docker bind mounts, system paths, etc.)
+func isStorageDevice(mountPoint, device, fsType string) bool {
+	// Root filesystem is always included
+	if mountPoint == "/" {
+		return true
+	}
+
+	// Check against excluded prefixes first
+	for _, prefix := range config.ExcludedMountPointPrefixes {
+		if strings.HasPrefix(mountPoint, prefix) {
+			return false
+		}
+	}
+
+	// Check against excluded suffixes
+	for _, suffix := range config.ExcludedMountPointSuffixes {
+		if strings.HasSuffix(mountPoint, suffix) {
+			return false
+		}
+	}
+
+	// Only allow mounts that look like actual storage locations
+	isAllowed := false
+	for _, prefix := range config.AllowedMountPointPrefixes {
+		if prefix == "/" {
+			// Skip root check here as it's handled above
+			continue
+		}
+		if strings.HasPrefix(mountPoint, prefix) {
+			isAllowed = true
+			break
+		}
+	}
+
+	if !isAllowed {
+		return false
+	}
+
+	// Additional check: skip very small partitions (likely boot/EFI partitions)
+	// This is handled via mount point suffixes above, but we can add more logic if needed
+
+	// Skip bind mounts to single files (these show up in Docker)
+	// They typically don't have a real block device
+	if !strings.HasPrefix(device, "/dev/") {
+		// Allow network filesystems and FUSE mounts
+		if fsType != "nfs" && fsType != "nfs4" && fsType != "cifs" && fsType != "smb" &&
+			!strings.HasPrefix(fsType, "fuse") {
+			return false
+		}
+	}
+
+	return true
 }
 
 // buildSystemMountInfoMap creates a map of mount point to mount info for fstype lookup

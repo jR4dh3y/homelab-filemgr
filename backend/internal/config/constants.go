@@ -18,5 +18,51 @@ var VirtualFilesystems = map[string]bool{
 	"tmpfs": true, "securityfs": true, "cgroup": true, "cgroup2": true,
 	"pstore": true, "debugfs": true, "tracefs": true, "configfs": true,
 	"fusectl": true, "mqueue": true, "hugetlbfs": true, "binfmt_misc": true,
-	"autofs": true, "overlay": true,
+	"autofs": true, "overlay": true, "efivarfs": true, "nsfs": true,
+	"ramfs": true, "rpc_pipefs": true, "nfsd": true, "squashfs": true,
 }
+
+// ExcludedMountPointPrefixes contains mount point path prefixes that should be filtered out
+// These are typically Docker bind mounts, system paths, or container-specific mounts
+// Also includes /host_root equivalents for when running in Docker
+var ExcludedMountPointPrefixes = []string{
+	// Container-internal mounts
+	"/etc/",                   // Docker bind mounts like /etc/hosts, /etc/resolv.conf, /etc/hostname
+	"/app/",                   // Application config bind mounts
+	"/proc/",                  // Process filesystem
+	"/sys/",                   // System filesystem
+	"/dev/",                   // Device filesystem
+	"/run/",                   // Runtime data
+	"/var/lib/docker",         // Docker internal paths
+	"/snap/",                  // Snap packages
+	"/boot/",                  // Boot partition
+	// Host paths via /host_root bind mount
+	"/host_root/etc/",         // Host's etc directory
+	"/host_root/proc/",        // Host's proc
+	"/host_root/sys/",         // Host's sys
+	"/host_root/dev/",         // Host's dev
+	"/host_root/run/",         // Host's run
+	"/host_root/var/lib/docker", // Host's docker
+	"/host_root/snap/",        // Host's snap packages
+	"/host_root/boot/",        // Host's boot partition
+}
+
+// ExcludedMountPointSuffixes contains mount point path suffixes that should be filtered out
+var ExcludedMountPointSuffixes = []string{
+	"/efivars", // EFI variables
+	"/efi",     // EFI partition (small boot partition)
+}
+
+// AllowedMountPointPrefixes contains mount point prefixes that should be included
+// if they pass the exclusion checks above
+var AllowedMountPointPrefixes = []string{
+	"/",                  // Root filesystem (exact match handled specially)
+	"/home",              // User home directories
+	"/media/",            // Removable media
+	"/mnt/",              // Manual mounts
+	"/host_root",         // Host root (exact match - the main host filesystem)
+	"/host_root/home",    // Host home directories
+	"/host_root/media/",  // Host removable media
+	"/host_root/mnt/",    // Host manual mounts
+}
+
