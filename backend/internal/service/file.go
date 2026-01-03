@@ -18,12 +18,12 @@ import (
 
 // File service errors
 var (
-	ErrPathNotFound      = errors.New("path not found")
-	ErrPathExists        = errors.New("path already exists")
-	ErrNotDirectory      = errors.New("path is not a directory")
-	ErrNotFile           = errors.New("path is not a file")
-	ErrPermissionDenied  = errors.New("permission denied")
-	ErrInvalidOperation  = errors.New("invalid operation")
+	ErrPathNotFound       = errors.New("path not found")
+	ErrPathExists         = errors.New("path already exists")
+	ErrNotDirectory       = errors.New("path is not a directory")
+	ErrNotFile            = errors.New("path is not a file")
+	ErrPermissionDenied   = errors.New("permission denied")
+	ErrInvalidOperation   = errors.New("invalid operation")
 	ErrMountPointNotFound = errors.New("mount point not found")
 )
 
@@ -65,7 +65,6 @@ type FileService interface {
 	// GetFilesystem returns the underlying filesystem for advanced operations
 	GetFilesystem() filesystem.FS
 }
-
 
 // fileService implements FileService
 type fileService struct {
@@ -224,7 +223,6 @@ func (s *fileService) List(ctx context.Context, path string, opts model.ListOpti
 		PageSize:   opts.PageSize,
 	}, nil
 }
-
 
 // GetInfo returns metadata for a file or directory
 func (s *fileService) GetInfo(ctx context.Context, path string) (*model.FileInfo, error) {
@@ -430,7 +428,6 @@ func (s *fileService) CreateFile(ctx context.Context, path string) (WriteFile, e
 func (s *fileService) GetFilesystem() filesystem.FS {
 	return s.fs
 }
-
 
 // sortEntries sorts directory entries based on the given criteria
 func (s *fileService) sortEntries(entries []fs.DirEntry, sortBy, sortDir string) {

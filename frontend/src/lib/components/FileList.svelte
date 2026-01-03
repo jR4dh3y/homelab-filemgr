@@ -8,9 +8,10 @@
 	import type { SortField, SortDir } from '$lib/types/files';
 	import { formatFileSize, formatFileDate } from '$lib/utils/format';
 	import { getFileTypeDescription, getFileIcon } from '$lib/utils/fileTypes';
+	import { getFileContextMenuItems } from '$lib/utils/fileContextMenu';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Spinner, ContextMenu, type ContextMenuItem } from '$lib/components/ui';
-	import { FolderOpen, Copy, Scissors, ClipboardPaste, Pencil, Trash2, Download, Info } from 'lucide-svelte';
+	import { FolderOpen } from 'lucide-svelte';
 
 	let {
 		items = [],
@@ -110,24 +111,6 @@
 			onContextMenuAction(action, contextMenu.items);
 		}
 		contextMenu = null;
-	}
-
-	function getContextMenuItems(targetItems: FileInfo[]): ContextMenuItem[] {
-		const hasMultiple = targetItems.length > 1;
-		const hasFolder = targetItems.some((i) => i.isDir);
-		const allFolders = targetItems.every((i) => i.isDir);
-		
-		return [
-			{ id: 'copy', label: 'Copy', icon: Copy, shortcut: 'Ctrl+C' },
-			{ id: 'cut', label: 'Cut', icon: Scissors, shortcut: 'Ctrl+X' },
-			{ id: 'paste', label: 'Paste', icon: ClipboardPaste, shortcut: 'Ctrl+V', disabled: !canPaste },
-			{ id: 'separator-1', label: '', separator: true },
-			{ id: 'rename', label: 'Rename', icon: Pencil, shortcut: 'F2', disabled: hasMultiple },
-			{ id: 'delete', label: 'Delete', icon: Trash2, shortcut: 'Del' },
-			{ id: 'separator-2', label: '', separator: true },
-			{ id: 'download', label: 'Download', icon: Download, disabled: hasFolder },
-			{ id: 'properties', label: 'Properties', icon: Info, disabled: hasMultiple },
-		];
 	}
 
 	function getSortIndicator(field: SortField): string {
@@ -258,7 +241,7 @@
 <!-- Context Menu -->
 {#if contextMenu}
 	<ContextMenu
-		items={getContextMenuItems(contextMenu.items)}
+		items={getFileContextMenuItems({ items: contextMenu.items, canPaste })}
 		x={contextMenu.x}
 		y={contextMenu.y}
 		onSelect={handleContextMenuSelect}

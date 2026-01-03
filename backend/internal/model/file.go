@@ -42,19 +42,18 @@ func DefaultListOptions() ListOptions {
 	}
 }
 
-
 // DriveStats represents disk usage statistics for a mount point
 type DriveStats struct {
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	Device     string `json:"device,omitempty"`     // The underlying device (e.g., /dev/sda1)
-	FSType     string `json:"fsType,omitempty"`     // Filesystem type (e.g., ext4, ntfs)
-	MountPoint string `json:"mountPoint,omitempty"` // Actual mount point in the system
-	TotalBytes uint64 `json:"totalBytes"`
-	FreeBytes  uint64 `json:"freeBytes"`
-	UsedBytes  uint64 `json:"usedBytes"`
+	Name       string  `json:"name"`
+	Path       string  `json:"path"`
+	Device     string  `json:"device,omitempty"`     // The underlying device (e.g., /dev/sda1)
+	FSType     string  `json:"fsType,omitempty"`     // Filesystem type (e.g., ext4, ntfs)
+	MountPoint string  `json:"mountPoint,omitempty"` // Actual mount point in the system
+	TotalBytes uint64  `json:"totalBytes"`
+	FreeBytes  uint64  `json:"freeBytes"`
+	UsedBytes  uint64  `json:"usedBytes"`
 	UsedPct    float64 `json:"usedPct"`
-	ReadOnly   bool   `json:"readOnly"`
+	ReadOnly   bool    `json:"readOnly"`
 }
 
 // DriveStatsResponse represents the response for drive stats endpoint
