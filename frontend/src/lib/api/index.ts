@@ -57,3 +57,10 @@ export {
 	type JobListResponse,
 	type CreateJobRequest
 } from './jobs';
+
+// System API
+export {
+	getSystemDrives,
+	type SystemDrive,
+	type SystemDrivesResponse
+} from './system';

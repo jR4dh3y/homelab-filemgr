@@ -131,6 +131,8 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 		MountPoints: mountPoints,
 	})
 
+	systemService := service.NewSystemService()
+
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authService)
 	fileHandler := handler.NewFileHandler(fileService)
@@ -138,9 +140,10 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 	jobHandler := handler.NewJobHandler(jobService)
 	searchHandler := handler.NewSearchHandler(searchService)
 	wsHandler := handler.NewWebSocketHandler(hub, authService)
+	systemHandler := handler.NewSystemHandler(systemService)
 
 	// Create router
-	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, mountPoints)
+	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, systemHandler, mountPoints)
 
 	// Create HTTP server
 	server := &http.Server{
@@ -165,6 +168,7 @@ func createRouter(
 	jobHandler *handler.JobHandler,
 	searchHandler *handler.SearchHandler,
 	wsHandler *handler.WebSocketHandler,
+	systemHandler *handler.SystemHandler,
 	mountPoints []model.MountPoint,
 ) chi.Router {
 	r := chi.NewRouter()
@@ -220,6 +224,11 @@ func createRouter(
 			// Job operations
 			r.Route("/jobs", func(r chi.Router) {
 				jobHandler.RegisterRoutes(r)
+			})
+
+			// System operations
+			r.Route("/system", func(r chi.Router) {
+				systemHandler.RegisterRoutes(r)
 			})
 		})
 
