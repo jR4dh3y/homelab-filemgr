@@ -2,8 +2,8 @@
 
 ## High Impact
 
-- [ ] **Context Menu (Right-click)** - Copy, Cut, Paste, Rename, Delete, Download, Properties, Open With
-- [ ] **Keyboard Shortcuts** - Ctrl+C/V/X, Delete, F2 (rename), Enter (open), Backspace (go up)
+- [x] **Context Menu (Right-click)** - Copy, Cut, Paste, Rename, Delete, Download, Properties, Open With
+- [ ] **Keyboard Shortcuts** - Ctrl+C/V/X/H(toggle hidden files),  Delete, F2 (rename), Enter (open), Backspace (go up), 
 - [ ] **Drag & Drop Upload** - Drop files anywhere to upload to current folder
 - [ ] **Search Bar** - Quick search in current folder or global search
 - [ ] **Breadcrumb Quick Navigation** - Click any folder in path to jump there
