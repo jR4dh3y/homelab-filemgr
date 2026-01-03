@@ -63,13 +63,13 @@ type DriveStatsResponse struct {
 
 // SystemDrive represents a filesystem/drive discovered from the system (via df)
 type SystemDrive struct {
-	Device     string  `json:"device"`               // The device name (e.g., /dev/sda1)
-	MountPoint string  `json:"mountPoint"`           // Where it's mounted (e.g., /home)
-	FSType     string  `json:"fsType,omitempty"`     // Filesystem type (e.g., ext4, ntfs)
-	TotalBytes uint64  `json:"totalBytes"`           // Total size in bytes
-	UsedBytes  uint64  `json:"usedBytes"`            // Used space in bytes
-	FreeBytes  uint64  `json:"freeBytes"`            // Available space in bytes
-	UsedPct    float64 `json:"usedPct"`              // Percentage used
+	Device     string  `json:"device"`           // The device name (e.g., /dev/sda1)
+	MountPoint string  `json:"mountPoint"`       // Where it's mounted (e.g., /home)
+	FSType     string  `json:"fsType,omitempty"` // Filesystem type (e.g., ext4, ntfs)
+	TotalBytes uint64  `json:"totalBytes"`       // Total size in bytes
+	UsedBytes  uint64  `json:"usedBytes"`        // Used space in bytes
+	FreeBytes  uint64  `json:"freeBytes"`        // Available space in bytes
+	UsedPct    float64 `json:"usedPct"`          // Percentage used
 }
 
 // SystemDrivesResponse represents the response for system drives endpoint

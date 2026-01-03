@@ -77,7 +77,6 @@ func main() {
 	waitForShutdown(ctx, cancel, server, jobService)
 }
 
-
 // initializeServer creates and configures all server components
 func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Server, *websocket.Hub, service.JobService, error) {
 	// Create filesystem abstraction (using real OS filesystem)
@@ -156,7 +155,6 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 
 	return server, hub, jobService, nil
 }
-
 
 // createRouter sets up the chi router with all routes and middleware
 func createRouter(
