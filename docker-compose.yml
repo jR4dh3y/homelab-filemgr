@@ -43,9 +43,10 @@ services:
       - ./backend/config.yaml:/app/config.yaml:ro
       
       # Mount points matching config.yaml
-      - /media/devmon:/media/devmon          # Attached drives
-      - /:/host_root                          # Root filesystem
-      - ${HOME_PATH:-/home/user}:/home/user  # Home directory
+      # rslave enables mount propagation so container sees new host mounts
+      - /media/devmon:/media/devmon:rslave    # Attached drives
+      - /:/host_root:rslave                   # Root filesystem (read-write with mount propagation)
+      - ${HOME_PATH:-/home/user}:/home/user   # Home directory
       
       # Temp directory for uploads
       - filemanager-temp:/tmp/filemanager
