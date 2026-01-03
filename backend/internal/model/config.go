@@ -2,9 +2,10 @@ package model
 
 // MountPoint represents a configured filesystem location accessible through the file manager
 type MountPoint struct {
-	Name     string `json:"name" mapstructure:"name"`
-	Path     string `json:"path" mapstructure:"path"`
-	ReadOnly bool   `json:"readOnly" mapstructure:"read_only"`
+	Name         string `json:"name" mapstructure:"name"`
+	Path         string `json:"path" mapstructure:"path"`
+	ReadOnly     bool   `json:"readOnly" mapstructure:"read_only"`
+	AutoDiscover bool   `json:"autoDiscover" mapstructure:"auto_discover"`
 }
 
 // ServerConfig contains all server configuration options

@@ -13,10 +13,12 @@ chunk_size_mb: 5      # 5MB chunk size for uploads
 
 # Mount points - directories accessible through the file manager
 # These appear as pinned folders in the UI
+# Set auto_discover: true to automatically detect mounted drives in that directory
 mount_points:
   - name: "drives"
     path: "/media/devmon"
     read_only: false
+    auto_discover: true  # Auto-detect mounted drives in /media/devmon
 
   - name: "root"
     path: "/host_root"

@@ -48,6 +48,11 @@
 				<span class="text-warning ml-1">· Read-only</span>
 			{/if}
 		</div>
+		{#if drive.device}
+			<div class="text-[10px] text-text-muted font-mono truncate" title="{drive.device} ({drive.fsType || 'unknown'})">
+				{drive.device}{#if drive.fsType} · {drive.fsType}{/if}
+			</div>
+		{/if}
 		
 		<!-- Progress bar with percentage -->
 		<div class="flex items-center gap-3">

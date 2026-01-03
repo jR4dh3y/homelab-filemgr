@@ -92,10 +92,13 @@ func (s *fileService) ListMountPoints() []model.MountPoint {
 }
 
 // GetDriveStats returns disk usage statistics for all mount points
+// Mount points with auto_discover enabled are expanded to their discovered sub-mounts
 func (s *fileService) GetDriveStats(ctx context.Context) (*model.DriveStatsResponse, error) {
-	drives := make([]model.DriveStats, 0, len(s.mountPoints))
+	// Expand auto-discover mount points
+	effectiveMounts := DiscoverMountPoints(s.fs, s.mountPoints)
+	drives := make([]model.DriveStats, 0, len(effectiveMounts))
 
-	for _, mount := range s.mountPoints {
+	for _, mount := range effectiveMounts {
 		stats, err := getDiskUsage(mount.Path)
 		if err != nil {
 			// Skip mounts we can't stat, but continue with others
@@ -105,6 +108,9 @@ func (s *fileService) GetDriveStats(ctx context.Context) (*model.DriveStatsRespo
 		drives = append(drives, model.DriveStats{
 			Name:       mount.Name,
 			Path:       mount.Path,
+			Device:     stats.Device,
+			FSType:     stats.FSType,
+			MountPoint: stats.MountPoint,
 			TotalBytes: stats.Total,
 			FreeBytes:  stats.Free,
 			UsedBytes:  stats.Used,
@@ -118,10 +124,13 @@ func (s *fileService) GetDriveStats(ctx context.Context) (*model.DriveStatsRespo
 
 // diskUsage holds disk usage statistics
 type diskUsage struct {
-	Total   uint64
-	Free    uint64
-	Used    uint64
-	UsedPct float64
+	Total      uint64
+	Free       uint64
+	Used       uint64
+	UsedPct    float64
+	Device     string // The underlying device (e.g., /dev/sda1)
+	FSType     string // Filesystem type (e.g., ext4, ntfs)
+	MountPoint string // Actual mount point in the system
 }
 
 // ResolvePath resolves a virtual path to a mount point and filesystem path

@@ -35,6 +35,7 @@ export interface FileList {
 export interface MountPoint {
 	name: string;
 	readOnly: boolean;
+	autoDiscover?: boolean;
 }
 
 /**
@@ -50,6 +51,9 @@ export interface RootsResponse {
 export interface DriveStats {
 	name: string;
 	path: string;
+	device?: string;     // The underlying device (e.g., /dev/sda1)
+	fsType?: string;     // Filesystem type (e.g., ext4, ntfs)
+	mountPoint?: string; // Actual mount point in the system
 	totalBytes: number;
 	freeBytes: number;
 	usedBytes: number;
