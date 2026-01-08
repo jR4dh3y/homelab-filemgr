@@ -1,5 +1,5 @@
 # Homelab File Manager - Docker Compose Configuration
-# 
+#
 # Usage:
 #   1. Copy .env.example to .env and configure your settings
 #   2. Run: docker-compose up -d
@@ -35,34 +35,36 @@ services:
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
     volumes:
       # Configuration file
       - ./backend/config.yaml:/app/config.yaml:ro
-      
+
       # Mount points matching config.yaml
       # rslave enables mount propagation so container sees new host mounts
-      - /media/devmon:/media/devmon:rslave    # Attached drives
-      - /:/host_root:rslave                   # Root filesystem (read-write with mount propagation)
-      - ${HOME_PATH:-/home/user}:/home/user   # Home directory
-      
+      - /media/devmon:/media/devmon:rslave # Attached drives
+      - /:/host_root:rslave # Root filesystem (read-write with mount propagation)
+      - ${HOME_PATH:-/home/user}:/home/user # Home directory
+
       # Temp directory for uploads
       - filemanager-temp:/tmp/filemanager
-    
+
     # Run with elevated privileges for filesystem access
     # This is necessary to read/write files with various ownership
     privileged: false
     cap_add:
-      - DAC_READ_SEARCH   # Read files regardless of permission bits
-      - CHOWN             # Change file ownership
-      - FOWNER            # Bypass permission checks for file owner
-    
+      - DAC_READ_SEARCH # Read files regardless of permission bits
+      - CHOWN # Change file ownership
+      - FOWNER # Bypass permission checks for file owner
+
     # Security options
     security_opt:
       - no-new-privileges:true
-    
+
     # Resource limits
     deploy:
       resources:
@@ -70,14 +72,14 @@ services:
           memory: 512M
         reservations:
           memory: 128M
-    
+
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health" ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-    
+
     networks:
       - filemanager-net
 
@@ -97,17 +99,17 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    
+
     # Run as non-root user
     user: "1001:1001"
-    
+
     # Security options
     security_opt:
       - no-new-privileges:true
     read_only: true
     tmpfs:
       - /tmp
-    
+
     # Resource limits
     deploy:
       resources:
@@ -115,14 +117,14 @@ services:
           memory: 256M
         reservations:
           memory: 64M
-    
+
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000" ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
-    
+
     networks:
       - filemanager-net
 
