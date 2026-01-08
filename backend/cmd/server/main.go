@@ -113,7 +113,7 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 	authService := service.NewAuthService(service.AuthServiceConfig{
 		JWTSecret: cfg.JWTSecret,
 		Users: map[string]string{
-			"admin": "admin", // Default user - should be configured properly in production
+			cfg.AdminUsername: cfg.AdminPassword,
 		},
 	})
 
