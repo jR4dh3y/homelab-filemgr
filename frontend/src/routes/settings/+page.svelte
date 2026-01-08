@@ -7,7 +7,6 @@
 	import { authStore } from '$lib/stores/auth';
 	import { settingsStore, type UserSettings } from '$lib/stores/settings';
 	import {
-		ChevronDown,
 		ChevronLeft,
 		Eye,
 		RotateCcw,
@@ -19,6 +18,7 @@
 		X,
 	} from 'lucide-svelte';
 	import { Button, Toggle, Select } from '$lib/components/ui';
+	import { SettingsSection, SettingsRow } from '$lib/components/settings';
 
 	let settings = $state<UserSettings>({ ...$settingsStore });
 	const hasChanges = $derived(JSON.stringify(settings) !== JSON.stringify($settingsStore));
@@ -68,10 +68,9 @@
 		{ value: 'grid', label: 'Grid' },
 	];
 
-	// Shared styles matching the sidebar design
-	const sectionHeaderClass =
-		'w-full flex items-center gap-1.5 px-3 py-2.5 bg-transparent border-none text-text-secondary text-[11px] font-medium uppercase tracking-wide cursor-pointer text-left hover:text-text-primary';
-	const settingRowClass = 'flex items-center justify-between py-2 px-3';
+	// Shared styles for navigation items
+	const navItemClass = 'w-full flex items-center gap-2.5 py-1.5 px-3 pl-5 bg-transparent border-none text-[13px] cursor-pointer text-left transition-colors duration-100 hover:bg-surface-secondary';
+	const backButtonClass = 'w-7 h-7 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary';
 </script>
 
 <svelte:head>
@@ -85,7 +84,7 @@
 		<div class="flex items-center gap-2 px-3 py-3 border-b border-border-secondary">
 			<button
 				type="button"
-				class="w-7 h-7 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary"
+				class={backButtonClass}
 				onclick={goBack}
 				title="Back to Files"
 			>
@@ -98,14 +97,14 @@
 		<nav class="flex-1 py-2">
 			<button
 				type="button"
-				class="w-full flex items-center gap-2.5 py-1.5 px-3 pl-5 bg-transparent border-none text-text-primary text-[13px] cursor-pointer text-left transition-colors duration-100 hover:bg-surface-secondary bg-selection"
+				class="{navItemClass} text-text-primary bg-selection"
 			>
 				<Eye size={16} class="shrink-0 opacity-80" />
 				<span>Preferences</span>
 			</button>
 			<button
 				type="button"
-				class="w-full flex items-center gap-2.5 py-1.5 px-3 pl-5 bg-transparent border-none text-text-secondary text-[13px] cursor-pointer text-left transition-colors duration-100 hover:bg-surface-secondary"
+				class="{navItemClass} text-text-secondary"
 				onclick={handleLogout}
 			>
 				<LogOut size={16} class="shrink-0 opacity-80" />
@@ -121,7 +120,7 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="w-7 h-7 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary"
+					class={backButtonClass}
 					onclick={goBack}
 					title="Back"
 				>
@@ -155,161 +154,67 @@
 		<div class="flex-1 overflow-auto">
 			<div class="max-w-[600px]">
 				<!-- File Display Section -->
-				<div class="border-b border-border-secondary">
-					<button
-						type="button"
-						class={sectionHeaderClass}
-						onclick={() => (displayCollapsed = !displayCollapsed)}
-					>
-						<ChevronDown
-							size={14}
-							class="shrink-0 transition-transform duration-150 {displayCollapsed ? '-rotate-90' : ''}"
-						/>
-						<Eye size={14} class="shrink-0 opacity-60" />
-						<span>File Display</span>
-					</button>
-					{#if !displayCollapsed}
-						<div class="pb-3">
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Show hidden files</span>
-									<span class="text-[11px] text-text-muted">Display files starting with a dot</span>
-								</div>
-								<Toggle bind:checked={settings.showHiddenFiles} />
-							</div>
+				<SettingsSection title="File Display" icon={Eye} bind:collapsed={displayCollapsed}>
+					<SettingsRow label="Show hidden files" description="Display files starting with a dot">
+						<Toggle bind:checked={settings.showHiddenFiles} />
+					</SettingsRow>
 
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Show file extensions</span>
-									<span class="text-[11px] text-text-muted">Display extensions in file list</span>
-								</div>
-								<Toggle bind:checked={settings.showFileExtensions} />
-							</div>
+					<SettingsRow label="Show file extensions" description="Display extensions in file list">
+						<Toggle bind:checked={settings.showFileExtensions} />
+					</SettingsRow>
 
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Compact mode</span>
-									<span class="text-[11px] text-text-muted">Reduce spacing for more items</span>
-								</div>
-								<Toggle bind:checked={settings.compactMode} />
-							</div>
-						</div>
-					{/if}
-				</div>
+					<SettingsRow label="Compact mode" description="Reduce spacing for more items">
+						<Toggle bind:checked={settings.compactMode} />
+					</SettingsRow>
+				</SettingsSection>
 
 				<!-- Behavior Section -->
-				<div class="border-b border-border-secondary">
-					<button
-						type="button"
-						class={sectionHeaderClass}
-						onclick={() => (behaviorCollapsed = !behaviorCollapsed)}
-					>
-						<ChevronDown
-							size={14}
-							class="shrink-0 transition-transform duration-150 {behaviorCollapsed ? '-rotate-90' : ''}"
-						/>
-						<MousePointer size={14} class="shrink-0 opacity-60" />
-						<span>Behavior</span>
-					</button>
-					{#if !behaviorCollapsed}
-						<div class="pb-3">
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Confirm before delete</span>
-									<span class="text-[11px] text-text-muted">Show confirmation dialog</span>
-								</div>
-								<Toggle bind:checked={settings.confirmDelete} />
-							</div>
+				<SettingsSection title="Behavior" icon={MousePointer} bind:collapsed={behaviorCollapsed}>
+					<SettingsRow label="Confirm before delete" description="Show confirmation dialog">
+						<Toggle bind:checked={settings.confirmDelete} />
+					</SettingsRow>
 
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Preview on single click</span>
-									<span class="text-[11px] text-text-muted">Open preview with single click</span>
-								</div>
-								<Toggle bind:checked={settings.previewOnSingleClick} />
-							</div>
-						</div>
-					{/if}
-				</div>
+					<SettingsRow label="Preview on single click" description="Open preview with single click">
+						<Toggle bind:checked={settings.previewOnSingleClick} />
+					</SettingsRow>
+				</SettingsSection>
 
 				<!-- Default View Section -->
-				<div class="border-b border-border-secondary">
-					<button
-						type="button"
-						class={sectionHeaderClass}
-						onclick={() => (viewCollapsed = !viewCollapsed)}
-					>
-						<ChevronDown
-							size={14}
-							class="shrink-0 transition-transform duration-150 {viewCollapsed ? '-rotate-90' : ''}"
-						/>
-						<Layout size={14} class="shrink-0 opacity-60" />
-						<span>Default View</span>
-					</button>
-					{#if !viewCollapsed}
-						<div class="pb-3">
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Sort by</span>
-									<span class="text-[11px] text-text-muted">Default sort field</span>
-								</div>
-								<div class="w-32">
-									<Select options={sortByOptions} bind:value={settings.defaultSortBy} />
-								</div>
-							</div>
-
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">Sort direction</span>
-									<span class="text-[11px] text-text-muted">Ascending or descending</span>
-								</div>
-								<div class="w-32">
-									<Select options={sortDirOptions} bind:value={settings.defaultSortDir} />
-								</div>
-							</div>
-
-							<div class={settingRowClass}>
-								<div class="flex flex-col gap-0.5">
-									<span class="text-[13px] text-text-primary">View mode</span>
-									<span class="text-[11px] text-text-muted">List or grid view</span>
-								</div>
-								<div class="w-32">
-									<Select options={viewModeOptions} bind:value={settings.defaultViewMode} />
-								</div>
-							</div>
+				<SettingsSection title="Default View" icon={Layout} bind:collapsed={viewCollapsed}>
+					<SettingsRow label="Sort by" description="Default sort field">
+						<div class="w-32">
+							<Select options={sortByOptions} bind:value={settings.defaultSortBy} />
 						</div>
-					{/if}
-				</div>
+					</SettingsRow>
+
+					<SettingsRow label="Sort direction" description="Ascending or descending">
+						<div class="w-32">
+							<Select options={sortDirOptions} bind:value={settings.defaultSortDir} />
+						</div>
+					</SettingsRow>
+
+					<SettingsRow label="View mode" description="List or grid view">
+						<div class="w-32">
+							<Select options={viewModeOptions} bind:value={settings.defaultViewMode} />
+						</div>
+					</SettingsRow>
+				</SettingsSection>
 
 				<!-- Account Section -->
-				<div class="border-b border-border-secondary">
-					<button
-						type="button"
-						class={sectionHeaderClass}
-						onclick={() => (accountCollapsed = !accountCollapsed)}
-					>
-						<ChevronDown
-							size={14}
-							class="shrink-0 transition-transform duration-150 {accountCollapsed ? '-rotate-90' : ''}"
-						/>
-						<User size={14} class="shrink-0 opacity-60" />
-						<span>Account</span>
-					</button>
-					{#if !accountCollapsed}
-						<div class="pb-3 px-3">
-							<div class="flex gap-2 pt-2">
-								<Button variant="secondary" size="sm" onclick={handleReset}>
-									<RotateCcw size={14} />
-									Reset to Defaults
-								</Button>
-								<Button variant="danger" size="sm" onclick={handleLogout}>
-									<LogOut size={14} />
-									Logout
-								</Button>
-							</div>
+				<SettingsSection title="Account" icon={User} bind:collapsed={accountCollapsed}>
+					<div class="px-3">
+						<div class="flex gap-2 pt-2">
+							<Button variant="secondary" size="sm" onclick={handleReset}>
+								<RotateCcw size={14} />
+								Reset to Defaults
+							</Button>
+							<Button variant="danger" size="sm" onclick={handleLogout}>
+								<LogOut size={14} />
+								Logout
+							</Button>
 						</div>
-					{/if}
-				</div>
+					</div>
+				</SettingsSection>
 			</div>
 		</div>
 
