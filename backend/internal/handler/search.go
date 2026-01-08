@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/homelab/filemanager/internal/model"
+	"github.com/homelab/filemanager/internal/service"
 )
 
 // SearchHandler handles search-related HTTP requests

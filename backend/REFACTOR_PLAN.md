@@ -2,7 +2,8 @@
 
 This document outlines all issues found during a code audit and provides actionable steps to refactor the backend to follow professional development practices.
 
-> **Last Updated:** 2026-01-03
+> **Last Updated:** 2026-01-08
+> **Status:** ✅ COMPLETE - All refactoring tasks have been implemented.
 
 ## Project Context
 
@@ -19,11 +20,13 @@ This document outlines all issues found during a code audit and provides actiona
 | Category | Total Items | ✅ Done | ⏳ Pending | 🔄 Partial |
 |----------|-------------|---------|-----------|------------|
 | Empty Placeholder Files | 4 | 4 | 0 | 0 |
-| Security Issues (Optional) | 3 | 0 | 3 | 0 |
+| Security Issues | 3 | 3 | 0 | 0 |
 | Code Duplication | 5 | 5 | 0 | 0 |
 | Architecture Issues | 3 | 3 | 0 | 0 |
 | Resource Management | 3 | 3 | 0 | 0 |
 | Configuration Issues | 2 | 2 | 0 | 0 |
+
+**🎉 All 20 items complete!**
 
 ---
 
@@ -127,40 +130,69 @@ package service
 
 ---
 
-## 2. Security Issues (Optional — Homelab Context)
+## 2. Security Issues ✅
 
-> **Note:** These are marked as optional since this is a homelab project behind a private network. Implement only if you plan to expose this externally or want defense-in-depth.
+> **Status:** All security features have been implemented!
 
-### 2.1 Hardcoded Default Credentials (Optional) ⏳
+### 2.1 Configurable Credentials ✅
 
-**Status:** ⏳ Still present
+**Status:** ✅ Implemented
 
-**File:** `cmd/server/main.go` (lines 111-113)
-```go
-Users: map[string]string{
-    "admin": "admin", // Default user - should be configured properly in production
-},
+**Changes Made:**
+- Added `Users` map to `ServerConfig` in `internal/model/config.go`
+- Config supports `FM_USERS_<username>=<password>` environment variables
+- Falls back to `admin:admin` if no users configured (with warning log)
+- Updated `cmd/server/main.go` to use configured users
+
+**Configuration:**
+```yaml
+# config.yaml
+users:
+  admin: "secure-password-here"
+  user2: "another-password"
 ```
 
-**For homelab:** This is fine. If you want to change credentials, just edit the map.
+Or via environment:
+```bash
+FM_USERS_admin=secure-password-here
+FM_USERS_user2=another-password
+```
 
-**For production:** Move to config file with bcrypt hashing.
+### 2.2 Rate Limiting ✅
 
-### 2.2 No Rate Limiting (Optional) ⏳
+**Status:** ✅ Implemented
 
-**Status:** ⏳ Not implemented
+**Changes Made:**
+- Created `internal/middleware/ratelimit.go` with per-IP rate limiting
+- Uses `golang.org/x/time/rate` token bucket algorithm
+- Configurable via `rate_limit_rps` in config (defaults to 10 RPS)
+- Applied to `/api/v1/auth/*` endpoints
+- Includes memory cleanup to prevent unbounded growth
 
-**For homelab:** Not needed — you're the only user on your network.
+**Configuration:**
+```yaml
+# config.yaml
+rate_limit_rps: 10  # requests per second per IP
+```
 
-**For production:** Add rate limiting middleware to auth endpoints.
+### 2.3 Configurable WebSocket Origins ✅
 
-### 2.3 WebSocket Allows All Origins (Optional) ⏳
+**Status:** ✅ Implemented
 
-**Status:** ⏳ Not configured
+**Changes Made:**
+- Added `AllowedOrigins` to `ServerConfig`
+- Updated `NewWebSocketHandler` to accept allowed origins list
+- Supports exact match and wildcard subdomains (`*.example.com`)
+- Empty list = allow all (homelab mode, backward compatible)
 
-**For homelab:** Fine — all traffic is from your network anyway.
-
-**For production:** Configure allowed origins list.
+**Configuration:**
+```yaml
+# config.yaml
+allowed_origins:
+  - "http://localhost:3000"
+  - "https://myapp.example.com"
+  - "*.internal.lan"
+```
 
 ---
 

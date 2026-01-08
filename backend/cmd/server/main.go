@@ -118,11 +118,15 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 	hub := websocket.NewHub()
 
 	// Create services
+	// Use configured users, or default to admin:admin if none configured (homelab default)
+	users := cfg.Users
+	if len(users) == 0 {
+		log.Warn().Msg("No users configured, using default admin:admin credentials")
+		users = map[string]string{"admin": "admin"}
+	}
 	authService := service.NewAuthService(service.AuthServiceConfig{
 		JWTSecret: cfg.JWTSecret,
-		Users: map[string]string{
-			"admin": "admin", // Default user - should be configured properly in production
-		},
+		Users:     users,
 	})
 
 	fileService := service.NewFileService(fs, service.FileServiceConfig{
@@ -146,7 +150,7 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 	streamHandler := handler.NewStreamHandler(fileService, cfg.ChunkSizeMB)
 	jobHandler := handler.NewJobHandler(jobService)
 	searchHandler := handler.NewSearchHandler(searchService)
-	wsHandler := handler.NewWebSocketHandler(hub, authService)
+	wsHandler := handler.NewWebSocketHandler(hub, authService, cfg.AllowedOrigins)
 	systemHandler := handler.NewSystemHandler(systemService)
 
 	// Create router
@@ -203,7 +207,9 @@ func createRouter(
 			w.Write([]byte(`{"status":"ok"}`))
 		})
 		// Public routes (no auth required)
+		// Auth routes are rate-limited to prevent brute force attacks
 		r.Route("/auth", func(r chi.Router) {
+			r.Use(middleware.RateLimit(cfg.RateLimitRPS))
 			authHandler.RegisterRoutes(r)
 		})
 

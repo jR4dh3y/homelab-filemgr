@@ -50,6 +50,16 @@ func (h *StreamHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/upload/status/*", h.UploadStatus)
 }
 
+// StartCleanup starts the periodic cleanup of expired upload sessions
+func (h *StreamHandler) StartCleanup(ctx context.Context) {
+	h.uploadManager.StartCleanup(ctx)
+}
+
+// StopCleanup stops the cleanup goroutine for upload sessions
+func (h *StreamHandler) StopCleanup() {
+	h.uploadManager.StopCleanup()
+}
+
 // Download handles file download requests with Range header support
 // GET /api/v1/download/*path
 func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {

@@ -15,8 +15,10 @@ func Load(configPath string) (*model.ServerConfig, error) {
 	// Set defaults
 	v.SetDefault("port", 8080)
 	v.SetDefault("host", "0.0.0.0")
-	v.SetDefault("max_upload_mb", 10240) // 10GB default
-	v.SetDefault("chunk_size_mb", 5)     // 5MB chunks
+	v.SetDefault("max_upload_mb", 10240)   // 10GB default
+	v.SetDefault("chunk_size_mb", 5)       // 5MB chunks
+	v.SetDefault("rate_limit_rps", 10.0)   // 10 requests per second
+	v.SetDefault("allowed_origins", []string{}) // Empty = allow all (homelab mode)
 
 	// Config file settings
 	if configPath != "" {
