@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 // MountPoint represents a configured filesystem location accessible through the file manager
 type MountPoint struct {
 	Name         string `json:"name" mapstructure:"name"`
@@ -28,6 +30,40 @@ func DefaultServerConfig() ServerConfig {
 		MaxUploadMB: 10240, // 10GB
 		ChunkSizeMB: 5,     // 5MB chunks
 	}
+}
+
+// Validate checks that the configuration is valid
+func (c *ServerConfig) Validate() error {
+	if c.JWTSecret == "" {
+		return fmt.Errorf("jwt_secret is required")
+	}
+
+	if len(c.MountPoints) == 0 {
+		return fmt.Errorf("at least one mount_point is required")
+	}
+
+	for i, mp := range c.MountPoints {
+		if mp.Name == "" {
+			return fmt.Errorf("mount_point[%d].name is required", i)
+		}
+		if mp.Path == "" {
+			return fmt.Errorf("mount_point[%d].path is required", i)
+		}
+	}
+
+	if c.Port < 1 || c.Port > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535")
+	}
+
+	if c.MaxUploadMB < 1 {
+		return fmt.Errorf("max_upload_mb must be at least 1")
+	}
+
+	if c.ChunkSizeMB < 1 {
+		return fmt.Errorf("chunk_size_mb must be at least 1")
+	}
+
+	return nil
 }
 
 // IsMountPointReadOnly checks if a mount point is read-only by name

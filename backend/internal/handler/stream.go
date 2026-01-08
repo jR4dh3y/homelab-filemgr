@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/homelab/filemanager/internal/config"
 	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/service"
 )
@@ -60,7 +62,7 @@ func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
 	// Open the file using the file service (uses filesystem abstraction)
 	file, info, err := h.fileService.OpenFile(r.Context(), path)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 	defer file.Close()
@@ -100,7 +102,7 @@ func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	// Open the file using the file service (uses filesystem abstraction)
 	file, info, err := h.fileService.OpenFile(r.Context(), path)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 	defer file.Close()
@@ -139,21 +141,7 @@ func (h *StreamHandler) detectMimeType(filename string) string {
 	return mime.TypeByExtension(ext)
 }
 
-// handleServiceError converts service errors to HTTP responses
-func (h *StreamHandler) handleServiceError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, service.ErrPathNotFound):
-		writeError(w, "Path not found", model.ErrCodeNotFound, http.StatusNotFound)
-	case errors.Is(err, service.ErrNotFile):
-		writeError(w, "Cannot download a directory", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrPermissionDenied):
-		writeError(w, "Permission denied", model.ErrCodePermissionDenied, http.StatusForbidden)
-	case errors.Is(err, service.ErrMountPointNotFound):
-		writeError(w, "Mount point not found or access denied", model.ErrCodeAccessDenied, http.StatusForbidden)
-	default:
-		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
-	}
-}
+
 
 
 // UploadSession tracks the state of a chunked upload
@@ -174,12 +162,56 @@ type UploadSession struct {
 type UploadManager struct {
 	sessions map[string]*UploadSession
 	mu       sync.RWMutex
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
 }
 
 // NewUploadManager creates a new upload manager
 func NewUploadManager() *UploadManager {
 	return &UploadManager{
 		sessions: make(map[string]*UploadSession),
+		stopCh:   make(chan struct{}),
+	}
+}
+
+// StartCleanup starts the periodic cleanup of expired sessions
+func (m *UploadManager) StartCleanup(ctx context.Context) {
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		ticker := time.NewTicker(config.SessionCleanupInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-m.stopCh:
+				return
+			case <-ticker.C:
+				m.cleanupExpiredSessions()
+			}
+		}
+	}()
+}
+
+// StopCleanup stops the cleanup goroutine
+func (m *UploadManager) StopCleanup() {
+	close(m.stopCh)
+	m.wg.Wait()
+}
+
+// cleanupExpiredSessions removes sessions that have been inactive for too long
+func (m *UploadManager) cleanupExpiredSessions() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now()
+	for id, session := range m.sessions {
+		if now.Sub(session.LastActivity) > config.SessionTimeout {
+			os.RemoveAll(session.TempDir)
+			delete(m.sessions, id)
+		}
 	}
 }
 
@@ -331,7 +363,7 @@ func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	// Validate path and check write permissions
 	mount, fsPath, err := h.fileService.ResolvePath(path)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 

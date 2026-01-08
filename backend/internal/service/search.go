@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"mime"
 	"path/filepath"
 	"strings"
 
 	"github.com/homelab/filemanager/internal/model"
+	"github.com/homelab/filemanager/internal/pkg/fileutil"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
 	"github.com/homelab/filemanager/internal/pkg/validator"
 )
@@ -122,7 +122,7 @@ func (s *searchService) searchRecursive(ctx context.Context, fsPath, virtualPath
 			if err != nil {
 				continue // Skip entries we can't stat
 			}
-			*results = append(*results, s.toFileInfo(name, entryVirtualPath, entryInfo))
+			*results = append(*results, fileutil.ToFileInfo(name, entryVirtualPath, entryInfo))
 		}
 
 		// Recurse into directories
@@ -136,27 +136,4 @@ func (s *searchService) searchRecursive(ctx context.Context, fsPath, virtualPath
 	return nil
 }
 
-// toFileInfo converts fs.FileInfo to model.FileInfo
-func (s *searchService) toFileInfo(name, path string, info fs.FileInfo) model.FileInfo {
-	fileInfo := model.FileInfo{
-		Name:        name,
-		Path:        path,
-		Size:        info.Size(),
-		IsDir:       info.IsDir(),
-		ModTime:     info.ModTime(),
-		Permissions: info.Mode().String(),
-	}
 
-	// Set MIME type for files
-	if !info.IsDir() {
-		ext := filepath.Ext(name)
-		if ext != "" {
-			mimeType := mime.TypeByExtension(ext)
-			if mimeType != "" {
-				fileInfo.MimeType = mimeType
-			}
-		}
-	}
-
-	return fileInfo
-}

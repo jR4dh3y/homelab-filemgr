@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/homelab/filemanager/internal/config"
 	"github.com/homelab/filemanager/internal/service"
 	ws "github.com/homelab/filemanager/internal/websocket"
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  config.WSReadBufferSize,
+	WriteBufferSize: config.WSWriteBufferSize,
 	// Allow connections from any origin in development
 	// In production, this should be restricted
 	CheckOrigin: func(r *http.Request) bool {

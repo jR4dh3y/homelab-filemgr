@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/homelab/filemanager/internal/model"
-	"github.com/homelab/filemanager/internal/service"
 )
 
 // SearchHandler handles search-related HTTP requests
@@ -56,7 +54,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	// Perform search
 	results, err := h.searchService.Search(r.Context(), path, query)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -71,18 +69,4 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp, http.StatusOK)
 }
 
-// handleServiceError converts service errors to HTTP responses
-func (h *SearchHandler) handleServiceError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, service.ErrEmptyQuery):
-		writeError(w, "Search query cannot be empty", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrPathNotFound):
-		writeError(w, "Path not found", model.ErrCodeNotFound, http.StatusNotFound)
-	case errors.Is(err, service.ErrNotDirectory):
-		writeError(w, "Path is not a directory", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrMountPointNotFound):
-		writeError(w, "Mount point not found or access denied", model.ErrCodeAccessDenied, http.StatusForbidden)
-	default:
-		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
-	}
-}
+

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/homelab/filemanager/internal/config"
 	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
 	"github.com/homelab/filemanager/internal/websocket"
@@ -89,6 +90,10 @@ func (s *jobService) Start(ctx context.Context) {
 		s.wg.Add(1)
 		go s.worker(ctx)
 	}
+
+	// Start cleanup goroutine
+	s.wg.Add(1)
+	go s.cleanupLoop(ctx)
 }
 
 // Stop stops the job executor
@@ -111,6 +116,36 @@ func (s *jobService) worker(ctx context.Context) {
 			s.execute(ctx, job)
 		}
 	}
+}
+
+// cleanupLoop periodically creates cleanup jobs
+func (s *jobService) cleanupLoop(ctx context.Context) {
+	defer s.wg.Done()
+	ticker := time.NewTicker(config.JobCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+			s.cleanupHistory()
+		}
+	}
+}
+
+// cleanupHistory removes old completed jobs
+func (s *jobService) cleanupHistory() {
+	cutoff := time.Now().Add(-config.JobRetentionPeriod)
+	s.allJobs.Range(func(key, value interface{}) bool {
+		job := value.(*model.Job)
+		if (job.State == model.JobStateCompleted || job.State == model.JobStateFailed || job.State == model.JobStateCancelled) && job.CompletedAt.Before(cutoff) {
+			s.allJobs.Delete(key)
+		}
+		return true
+	})
 }
 
 // Create creates a new background job
