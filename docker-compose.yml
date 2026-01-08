@@ -35,6 +35,8 @@ services:
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml

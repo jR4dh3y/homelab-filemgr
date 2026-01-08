@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/homelab/filemanager/internal/model"
@@ -47,6 +48,24 @@ func Load(configPath string) (*model.ServerConfig, error) {
 	var cfg model.ServerConfig
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
+	}
+
+	// Parse FM_USERS_* environment variables into the Users map
+	// Viper's AutomaticEnv doesn't handle map types from env vars like FM_USERS_username=password
+	if cfg.Users == nil {
+		cfg.Users = make(map[string]string)
+	}
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "FM_USERS_") {
+			parts := strings.SplitN(env, "=", 2)
+			if len(parts) == 2 {
+				username := strings.TrimPrefix(parts[0], "FM_USERS_")
+				password := parts[1]
+				if username != "" && password != "" {
+					cfg.Users[username] = password
+				}
+			}
+		}
 	}
 
 	// Validate required fields
