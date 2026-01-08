@@ -4,6 +4,33 @@ This document defines coding standards and patterns for the Homelab File Manager
 
 ---
 
+## Before You Start Coding
+
+### Ask Yourself:
+
+1. **Does this already exist?**
+   - Search the codebase for similar functionality
+   - Check the utility folders listed in "Core Principles"
+
+2. **Can I extend something existing?**
+   - Maybe a utility just needs one more function
+   - Maybe a component just needs one more prop
+
+3. **Where should this live?**
+   - Is it reusable? → Put in `utils/` or `pkg/`
+   - Is it specific to one feature? → Keep it local
+   - Is it a constant? → Put in config
+
+4. **Am I duplicating anything?**
+   - If you're copying code, stop and extract it
+   - If you're defining the same type twice, use the existing one
+
+5. **Is this function doing too much?**
+   - Can you describe it in one sentence without "and"?
+   - If not, break it down
+
+---
+
 ## Core Principles
 
 ### 1. Don't Reinvent the Wheel
@@ -18,6 +45,8 @@ Backend:
 - Error handling      → internal/handler/errors.go
 - Response helpers    → internal/handler/response.go
 - Constants           → internal/config/constants.go
+- Rate limiting       → internal/middleware/ratelimit.go
+- Security headers    → internal/middleware/security.go
 
 Frontend:
 - File type detection → src/lib/utils/fileTypes.ts
@@ -586,33 +615,6 @@ const (
 
 ---
 
-## Before You Start Coding
-
-### Ask Yourself:
-
-1. **Does this already exist?**
-   - Search the codebase for similar functionality
-   - Check the utility folders listed in "Core Principles"
-
-2. **Can I extend something existing?**
-   - Maybe a utility just needs one more function
-   - Maybe a component just needs one more prop
-
-3. **Where should this live?**
-   - Is it reusable? → Put in `utils/` or `pkg/`
-   - Is it specific to one feature? → Keep it local
-   - Is it a constant? → Put in config
-
-4. **Am I duplicating anything?**
-   - If you're copying code, stop and extract it
-   - If you're defining the same type twice, use the existing one
-
-5. **Is this function doing too much?**
-   - Can you describe it in one sentence without "and"?
-   - If not, break it down
-
----
-
 ## Quick Reference: Where Things Go
 
 | What you need | Backend location | Frontend location |
@@ -621,7 +623,9 @@ const (
 | Type definitions | `internal/model/` | `src/lib/types/` |
 | API response helpers | `internal/handler/response.go` | — |
 | Error handling | `internal/handler/errors.go` | — |
-| File type detection | — | `src/lib/utils/fileTypes.ts` |
+| Rate limiting | `internal/middleware/ratelimit.go` | — |
+| Security headers | `internal/middleware/security.go` | — |
+| MIME type detection | `internal/pkg/fileutil/` | `src/lib/utils/fileTypes.ts` |
 | Formatting (size, date) | — | `src/lib/utils/format.ts` |
 | Path validation | `internal/pkg/validator/` | — |
 | Filesystem operations | `internal/pkg/filesystem/` | — |
@@ -629,3 +633,21 @@ const (
 | API client functions | — | `src/lib/api/` |
 | State management | — | `src/lib/stores/` |
 | localStorage access | — | `src/lib/utils/storage.ts` |
+
+---
+
+## Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CODE_AUDIT.md](CODE_AUDIT.md) | Code audit report with duplication findings and action items |
+| [TODO.md](TODO.md) | Feature roadmap and pending work |
+| [backend/REFACTOR_PLAN.md](backend/REFACTOR_PLAN.md) | Backend refactoring plan (✅ complete) |
+| [frontend/REFACTOR_PLAN.md](frontend/REFACTOR_PLAN.md) | Frontend refactoring plan |
+| [docs/security.md](docs/security.md) | Security features and best practices |
+| [docs/configuration.md](docs/configuration.md) | Configuration options including security settings |
+| [docs/api.md](docs/api.md) | REST API reference |
+
+---
+
+> **Last Updated:** 2026-01-08

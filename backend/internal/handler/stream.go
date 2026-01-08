@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/homelab/filemanager/internal/config"
 	"github.com/homelab/filemanager/internal/model"
+	"github.com/homelab/filemanager/internal/pkg/fileutil"
 	"github.com/homelab/filemanager/internal/service"
 )
 
@@ -77,11 +77,8 @@ func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Detect MIME type
-	mimeType := h.detectMimeType(info.Name)
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
-	}
+	// Detect MIME type using centralized utility
+	mimeType := fileutil.DetectMimeType(info.Name)
 
 	// Set response headers
 	w.Header().Set("Content-Type", mimeType)
@@ -117,11 +114,8 @@ func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Detect MIME type
-	mimeType := h.detectMimeType(info.Name)
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
-	}
+	// Detect MIME type using centralized utility
+	mimeType := fileutil.DetectMimeType(info.Name)
 
 	// Set response headers for inline viewing
 	w.Header().Set("Content-Type", mimeType)
@@ -141,17 +135,6 @@ func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, file)
 	}
 }
-
-// detectMimeType detects the MIME type based on file extension
-func (h *StreamHandler) detectMimeType(filename string) string {
-	ext := filepath.Ext(filename)
-	if ext == "" {
-		return ""
-	}
-	return mime.TypeByExtension(ext)
-}
-
-
 
 
 // UploadSession tracks the state of a chunked upload

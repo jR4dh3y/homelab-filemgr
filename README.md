@@ -30,7 +30,8 @@
 | **Real-time Updates** | WebSocket-powered live updates for file changes and job progress |
 | **Background Jobs** | Copy, move, and delete operations run asynchronously with monitoring |
 | **Fast Search** | Recursive directory scanning with name filtering |
-| **Secure by Default** | JWT auth, path traversal protection, configurable read-only mounts |
+| **Secure by Default** | JWT auth, path traversal protection, configurable credentials, rate limiting |
+| **Configurable Access** | Per-user credentials, read-only mounts, WebSocket origin restrictions |
 
 ---
 
