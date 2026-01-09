@@ -104,6 +104,19 @@ const (
 )
 
 // ============================================================================
+// Data Storage Configuration
+// ============================================================================
+
+// Data storage constants
+const (
+	// DefaultDataDir is the default directory for persistent data storage
+	DefaultDataDir = "/data"
+
+	// DriveNamesFileName is the filename for storing custom drive names
+	DriveNamesFileName = "drive-names.json"
+)
+
+// ============================================================================
 // Filesystem Constants
 // ============================================================================
 

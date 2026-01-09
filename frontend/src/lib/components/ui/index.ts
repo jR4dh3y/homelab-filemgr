@@ -14,3 +14,4 @@ export { default as Badge } from './Badge.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as ContextMenu } from './ContextMenu.svelte';
 export type { ContextMenuItem } from './ContextMenu.svelte';
+export { default as InlineRename } from './InlineRename.svelte';

@@ -1,8 +1,9 @@
 /**
- * Settings store - persists user preferences to localStorage
+ * Settings store - persists user preferences to localStorage and API
  */
 import { writable, derived, get } from 'svelte/store';
 import { settingsStorage } from '$lib/utils/storage';
+import { getDriveNames, setDriveName as apiSetDriveName, deleteDriveName as apiDeleteDriveName } from '$lib/api/drive-names';
 
 export interface UserSettings {
 	showHiddenFiles: boolean;
@@ -13,6 +14,7 @@ export interface UserSettings {
 	defaultViewMode: 'list' | 'grid';
 	previewOnSingleClick: boolean;
 	compactMode: boolean;
+	driveNameOverrides: Record<string, string>;
 }
 
 const defaultSettings: UserSettings = {
@@ -23,7 +25,8 @@ const defaultSettings: UserSettings = {
 	defaultSortDir: 'asc',
 	defaultViewMode: 'list',
 	previewOnSingleClick: false,
-	compactMode: false
+	compactMode: false,
+	driveNameOverrides: {}
 };
 
 function loadSettings(): UserSettings {
@@ -35,12 +38,30 @@ function saveSettings(settings: UserSettings): void {
 	settingsStorage.set(settings);
 }
 
+async function loadDriveNames(): Promise<Record<string, string>> {
+	try {
+		const response = await getDriveNames();
+		const names: Record<string, string> = {};
+		for (const mapping of response.mappings) {
+			names[mapping.mountPoint] = mapping.customName;
+		}
+		return names;
+	} catch {
+		return {};
+	}
+}
+
 function createSettingsStore() {
 	const { subscribe, set, update } = writable<UserSettings>(loadSettings());
 
 	return {
 		subscribe,
-		
+
+		async initialize() {
+			const driveNames = await loadDriveNames();
+			update(current => ({ ...current, driveNameOverrides: driveNames }));
+		},
+
 		set(settings: UserSettings) {
 			saveSettings(settings);
 			set(settings);
@@ -69,11 +90,43 @@ function createSettingsStore() {
 
 		getSetting<K extends keyof UserSettings>(key: K): UserSettings[K] {
 			return get({ subscribe })[key];
+		},
+
+		async setDriveName(originalName: string, customName: string) {
+			await apiSetDriveName({ mountPoint: originalName, customName });
+			update(current => {
+				const updated = {
+					...current,
+					driveNameOverrides: { ...current.driveNameOverrides, [originalName]: customName }
+				};
+				saveSettings(updated);
+				return updated;
+			});
+		},
+
+		async removeDriveName(originalName: string) {
+			await apiDeleteDriveName(originalName);
+			update(current => {
+				const { [originalName]: removed, ...rest } = current.driveNameOverrides;
+				const updated = { ...current, driveNameOverrides: rest };
+				saveSettings(updated);
+				return updated;
+			});
+		},
+
+		getDriveName(originalName: string): string | null {
+			return get({ subscribe }).driveNameOverrides[originalName] || null;
+		},
+
+		get driveNameOverrides(): Record<string, string> {
+			return get({ subscribe }).driveNameOverrides;
 		}
 	};
 }
 
 export const settingsStore = createSettingsStore();
+// Note: initialize() should be called after successful authentication
+// Do not call here as the API requires auth
 
 // Derived stores for individual settings
 export const showHiddenFiles = derived(settingsStore, $s => $s.showHiddenFiles);

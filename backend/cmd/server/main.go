@@ -51,7 +51,7 @@ func main() {
 	defer cancel()
 
 	// Initialize components
-	server, hub, jobService, authService, streamHandler, err := initializeServer(ctx, cfg)
+	server, hub, jobService, authService, streamHandler, _, err := initializeServer(ctx, cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize server")
 	}
@@ -72,6 +72,13 @@ func main() {
 	streamHandler.StartCleanup(ctx)
 	log.Info().Msg("Upload session cleanup started")
 
+	// Ensure data directory exists for settings storage
+	if err := os.MkdirAll(config.DefaultDataDir, 0755); err != nil {
+		log.Warn().Err(err).Str("path", config.DefaultDataDir).Msg("Could not create data directory, settings may not persist")
+	} else {
+		log.Info().Str("path", config.DefaultDataDir).Msg("Data directory created/verified")
+	}
+
 	// Start HTTP server in background
 	go func() {
 		addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
@@ -86,7 +93,7 @@ func main() {
 }
 
 // initializeServer creates and configures all server components
-func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Server, *websocket.Hub, service.JobService, service.AuthService, *handler.StreamHandler, error) {
+func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Server, *websocket.Hub, service.JobService, service.AuthService, *handler.StreamHandler, *handler.SettingsHandler, error) {
 	// Create filesystem abstraction (using real OS filesystem)
 	fs := filesystem.NewOsFS()
 
@@ -144,6 +151,10 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 
 	systemService := service.NewSystemService()
 
+	settingsService := service.NewSettingsService(fs, service.SettingsServiceConfig{
+		DataDir: config.DefaultDataDir,
+	})
+
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authService)
 	fileHandler := handler.NewFileHandler(fileService)
@@ -152,9 +163,10 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 	searchHandler := handler.NewSearchHandler(searchService)
 	wsHandler := handler.NewWebSocketHandler(hub, authService, cfg.AllowedOrigins)
 	systemHandler := handler.NewSystemHandler(systemService)
+	settingsHandler := handler.NewSettingsHandler(settingsService)
 
 	// Create router
-	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, systemHandler, mountPoints)
+	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, systemHandler, settingsHandler, mountPoints)
 
 	// Create HTTP server
 	// Create HTTP server
@@ -166,10 +178,10 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 		IdleTimeout:  config.HTTPIdleTimeout,
 	}
 
-	return server, hub, jobService, authService, streamHandler, nil
+	return server, hub, jobService, authService, streamHandler, settingsHandler, nil
 }
 
-// createRouter sets up the chi router with all routes and middleware
+// createRouter sets up chi router with all routes and middleware
 func createRouter(
 	cfg *model.ServerConfig,
 	authService service.AuthService,
@@ -180,6 +192,7 @@ func createRouter(
 	searchHandler *handler.SearchHandler,
 	wsHandler *handler.WebSocketHandler,
 	systemHandler *handler.SystemHandler,
+	settingsHandler *handler.SettingsHandler,
 	mountPoints []model.MountPoint,
 ) chi.Router {
 	r := chi.NewRouter()
@@ -243,6 +256,11 @@ func createRouter(
 			r.Route("/system", func(r chi.Router) {
 				systemHandler.RegisterRoutes(r)
 			})
+
+			// Settings operations
+			r.Route("/settings", func(r chi.Router) {
+				settingsHandler.RegisterRoutes(r)
+			})
 		})
 
 		// WebSocket endpoint (auth handled in handler)
@@ -280,7 +298,7 @@ func waitForShutdown(ctx context.Context, cancel context.CancelFunc, server *htt
 	}
 
 	log.Info().Msg("Server shutdown complete")
-	
+
 	// Stop background cleanups
 	authService.StopCleanup()
 	streamHandler.StopCleanup()

@@ -10,6 +10,7 @@ import {
 	isAuthenticated as checkAuth
 } from '$lib/api/auth';
 import { CONFIG } from '$lib/config';
+import { settingsStore } from './settings';
 
 /**
  * Auth state interface
@@ -51,6 +52,8 @@ function createAuthStore() {
 
 		if (isAuth) {
 			startTokenRefresh();
+			// Load user settings after auth is confirmed
+			settingsStore.initialize();
 		}
 	}
 
@@ -101,6 +104,8 @@ function createAuthStore() {
 				username
 			}));
 			startTokenRefresh();
+			// Load user settings after successful login
+			settingsStore.initialize();
 			return true;
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Login failed';
