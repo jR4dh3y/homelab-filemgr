@@ -1,0 +1,52 @@
+# Air configuration for Go hot reload
+# https://github.com/air-verse/air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # Build command
+  cmd = "go build -o ./tmp/server ./cmd/server"
+  # Entrypoint (binary + args to run)
+  entrypoint = ["./tmp/server", "-config", "config.yaml"]
+  # Watch these file extensions
+  include_ext = ["go", "yaml", "yml"]
+  # Exclude these directories
+  exclude_dir = ["tmp", "vendor", ".git"]
+  # Exclude files matching these patterns
+  exclude_file = []
+  # Exclude regex patterns
+  exclude_regex = ["_test\\.go$"]
+  # Exclude unchanged files
+  exclude_unchanged = true
+  # Follow symlinks
+  follow_symlink = false
+  # Delay before rebuilding (milliseconds)
+  delay = 1000
+  # Stop running old binary before building new one
+  stop_on_error = true
+  # Send interrupt signal before kill
+  send_interrupt = true
+  # Delay before sending kill signal after interrupt (milliseconds)
+  kill_delay = 500
+  # Rerun binary when build fails
+  rerun = false
+  # Rerun delay
+  rerun_delay = 500
+
+[log]
+  # Show log time
+  time = false
+  # Only show main log (silences watcher and build logs)
+  main_only = false
+
+[color]
+  # Customize colors (valid values: red, green, yellow, blue, magenta, cyan, white)
+  main = "yellow"
+  watcher = "cyan"
+  build = "green"
+  runner = "magenta"
+
+[misc]
+  # Delete tmp directory on exit
+  clean_on_exit = true

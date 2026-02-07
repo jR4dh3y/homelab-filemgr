@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -8,11 +8,14 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		// Use Node adapter for Docker deployment
+		// Static adapter for single-container Docker deployment
+		// Frontend is embedded in Go binary via go:embed
 		adapter: adapter({
-			out: 'build',
-			precompress: true,
-			envPrefix: 'PUBLIC_'
+			pages: 'build',
+			assets: 'build',
+			fallback: 'index.html', // SPA fallback for client-side routing
+			precompress: true, // Generate .gz and .br files
+			strict: false // Don't fail on dynamic routes
 		})
 	}
 };

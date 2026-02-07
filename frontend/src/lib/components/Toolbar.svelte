@@ -2,7 +2,7 @@
 	/**
 	 * Toolbar component - navigation buttons and path bar
 	 */
-	import { ChevronLeft, ChevronRight, ChevronUp, Home, RefreshCw, Settings } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight, ChevronUp, Home, RefreshCw, Settings, FolderUp } from 'lucide-svelte';
 
 	interface Props {
 		pathSegments?: string[];
@@ -15,6 +15,8 @@
 		onNavigate?: (path: string) => void;
 		onRefresh?: () => void;
 		onSettings?: () => void;
+		onUpload?: () => void;
+		uploadDisabled?: boolean;
 	}
 
 	let {
@@ -28,6 +30,8 @@
 		onNavigate,
 		onRefresh,
 		onSettings,
+		onUpload,
+		uploadDisabled = false,
 	}: Props = $props();
 
 	function buildPath(index: number): string {
@@ -96,6 +100,9 @@
 
 	<!-- Action buttons -->
 	<div class="flex gap-1">
+		<button type="button" class={navBtnClass} disabled={uploadDisabled} onclick={onUpload} title="Upload files">
+			<FolderUp size={16} />
+		</button>
 		<button type="button" class={navBtnClass} onclick={onRefresh} title="Refresh">
 			<RefreshCw size={16} />
 		</button>

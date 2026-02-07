@@ -22,6 +22,7 @@ import (
 	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
 	"github.com/homelab/filemanager/internal/service"
+	"github.com/homelab/filemanager/internal/static"
 	"github.com/homelab/filemanager/internal/websocket"
 )
 
@@ -266,6 +267,16 @@ func createRouter(
 		// WebSocket endpoint (auth handled in handler)
 		r.Get("/ws", wsHandler.ServeWS)
 	})
+
+	// Static file handler for SPA frontend (catch-all)
+	// This must be after all API routes
+	staticHandler, err := static.NewHandler()
+	if err != nil {
+		log.Warn().Err(err).Msg("Static handler not available, frontend will not be served")
+	} else {
+		r.NotFound(staticHandler.ServeHTTP)
+		log.Info().Msg("Static file handler initialized for SPA frontend")
+	}
 
 	return r
 }
