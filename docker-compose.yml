@@ -6,9 +6,9 @@
 # Usage:
 #   1. Copy .env.example to .env and configure your settings
 #   2. Run: docker-compose up -d
-#   3. Access the UI at http://localhost:8080
+#   3. Access via Traefik at http://files.jr4.in or http://fm.jr4.in
 #
-# For reverse proxy (Traefik, Caddy, nginx), point to port 8080.
+# Configured for Traefik reverse proxy. Set TRAEFIK_HOST in .env.
 # =============================================================================
 
 services:
@@ -16,10 +16,15 @@ services:
     build: .
     container_name: filemanager
     restart: unless-stopped
-    ports:
-      - "${PORT:-8080}:8080"
     env_file:
       - .env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.filemanager.rule=Host(`${TRAEFIK_HOST:-filemanager.localhost}`)"
+      - "traefik.http.routers.filemanager.entrypoints=web"
+      - "traefik.http.services.filemanager.loadbalancer.server.port=80"
+    networks:
+      - proxy
     environment:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
@@ -57,7 +62,7 @@ services:
 
     # Health monitoring
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/health | grep -q 'ok' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -68,3 +73,7 @@ volumes:
     driver: local
   filemanager-data:
     driver: local
+
+networks:
+  proxy:
+    external: true

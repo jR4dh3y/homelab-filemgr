@@ -29,7 +29,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// - ws:/wss: Required for WebSocket connections
 		csp := strings.Join([]string{
 			"default-src 'self'",
-			"script-src 'self' 'unsafe-eval' blob:",
+			"script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://static.cloudflareinsights.com",
 			"style-src 'self' 'unsafe-inline'",
 			"font-src 'self' data:",
 			"img-src 'self' data: blob:",

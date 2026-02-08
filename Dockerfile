@@ -5,7 +5,7 @@
 # Frontend is compiled to static files and embedded in the Go binary via go:embed.
 #
 # Build: docker build -t filemanager .
-# Run:   docker run -p 8080:8080 -v /your/files:/media/files filemanager
+# Run:   docker run -p 80:80 -v /your/files:/media/files filemanager
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -72,12 +72,12 @@ COPY backend/config.yaml /app/config.yaml
 # Create data directory for settings persistence
 RUN mkdir -p /app/data
 
-# Expose the server port
-EXPOSE 8080
+# Expose the server port (port 80 for Traefik compatibility)
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget -qO- http://localhost:80/health | grep -q 'ok' || exit 1
 
 # Run the server
 ENTRYPOINT ["/app/server"]
