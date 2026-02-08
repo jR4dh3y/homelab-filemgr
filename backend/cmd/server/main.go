@@ -134,7 +134,9 @@ func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Serve
 	}
 	authService := service.NewAuthService(service.AuthServiceConfig{
 		JWTSecret: cfg.JWTSecret,
-		Users:     users,
+		Users: map[string]string{
+			cfg.AdminUsername: cfg.AdminPassword,
+		},
 	})
 
 	fileService := service.NewFileService(fs, service.FileServiceConfig{
