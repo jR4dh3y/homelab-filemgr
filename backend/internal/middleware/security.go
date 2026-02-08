@@ -23,7 +23,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 
 		// Content Security Policy - permissive for Monaco editor and SPA frontend
 		// - 'unsafe-eval': Required by Monaco editor for syntax highlighting
-		// - 'unsafe-inline': Required for Tailwind CSS and Monaco inline styles
+		// - 'unsafe-inline': Required for SvelteKit bootstrapping and Tailwind/Monaco inline styles
 		// - blob: Required for Monaco web workers
 		// - data: Required for fonts and embedded images
 		// - ws:/wss: Required for WebSocket connections
