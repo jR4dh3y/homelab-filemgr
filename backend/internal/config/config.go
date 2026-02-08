@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/homelab/filemanager/internal/model"
 	"github.com/spf13/viper"
 )
 
@@ -27,11 +29,11 @@ type ServerConfig struct {
 }
 
 // Load reads configuration from file and environment variables
-func Load(configPath string) (*ServerConfig, error) {
+func Load(configPath string) (*model.ServerConfig, error) {
 	v := viper.New()
 
 	// Set defaults
-	v.SetDefault("port", 8080)
+	v.SetDefault("port", 80)
 	v.SetDefault("host", "0.0.0.0")
 	v.SetDefault("max_upload_mb", 10240) // 10GB default
 	v.SetDefault("chunk_size_mb", 5)     // 5MB chunks
@@ -62,35 +64,26 @@ func Load(configPath string) (*ServerConfig, error) {
 		// Config file not found is okay, we'll use defaults and env vars
 	}
 
-	var cfg ServerConfig
+	var cfg model.ServerConfig
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
-	// Validate required fields
-	if err := cfg.Validate(); err != nil {
-		return nil, err
+	// Parse FM_USERS_* environment variables into the Users map
+	// Viper's AutomaticEnv doesn't handle map types from env vars like FM_USERS_username=password
+	if cfg.Users == nil {
+		cfg.Users = make(map[string]string)
 	}
-
-	return &cfg, nil
-}
-
-// Validate checks that the configuration is valid
-func (c *ServerConfig) Validate() error {
-	if c.JWTSecret == "" {
-		return fmt.Errorf("jwt_secret is required")
-	}
-
-	if len(c.MountPoints) == 0 {
-		return fmt.Errorf("at least one mount_point is required")
-	}
-
-	for i, mp := range c.MountPoints {
-		if mp.Name == "" {
-			return fmt.Errorf("mount_point[%d].name is required", i)
-		}
-		if mp.Path == "" {
-			return fmt.Errorf("mount_point[%d].path is required", i)
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "FM_USERS_") {
+			parts := strings.SplitN(env, "=", 2)
+			if len(parts) == 2 {
+				username := strings.TrimPrefix(parts[0], "FM_USERS_")
+				password := parts[1]
+				if username != "" && password != "" {
+					cfg.Users[username] = password
+				}
+			}
 		}
 	}
 
@@ -124,14 +117,6 @@ func (c *ServerConfig) GetMountPoint(name string) *MountPoint {
 			return &c.MountPoints[i]
 		}
 	}
-	return nil
-}
 
-// IsMountPointReadOnly checks if a mount point is read-only
-func (c *ServerConfig) IsMountPointReadOnly(name string) bool {
-	mp := c.GetMountPoint(name)
-	if mp == nil {
-		return true // Default to read-only for unknown mounts
-	}
-	return mp.ReadOnly
+	return &cfg, nil
 }

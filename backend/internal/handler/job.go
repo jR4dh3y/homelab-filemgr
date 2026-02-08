@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -88,7 +87,7 @@ func (h *JobHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	job, err := h.jobService.Get(r.Context(), jobID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -133,7 +132,7 @@ func (h *JobHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Create job
 	job, err := h.jobService.Create(r.Context(), params)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -150,7 +149,7 @@ func (h *JobHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.jobService.Cancel(r.Context(), jobID); err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -181,18 +180,4 @@ func (h *JobHandler) toJobResponse(job *model.Job) JobResponse {
 	return resp
 }
 
-// handleServiceError converts service errors to HTTP responses
-func (h *JobHandler) handleServiceError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, service.ErrJobNotFound):
-		writeError(w, "Job not found", model.ErrCodeJobNotFound, http.StatusNotFound)
-	case errors.Is(err, service.ErrJobNotCancellable):
-		writeError(w, "Job cannot be cancelled", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrInvalidJobType):
-		writeError(w, "Invalid job type", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrInvalidJobParams):
-		writeError(w, "Invalid job parameters", model.ErrCodeValidationError, http.StatusBadRequest)
-	default:
-		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
-	}
-}
+

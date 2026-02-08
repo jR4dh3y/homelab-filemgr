@@ -22,6 +22,7 @@ import (
 	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
 	"github.com/homelab/filemanager/internal/service"
+	"github.com/homelab/filemanager/internal/static"
 	"github.com/homelab/filemanager/internal/websocket"
 )
 
@@ -51,7 +52,7 @@ func main() {
 	defer cancel()
 
 	// Initialize components
-	server, hub, jobService, err := initializeServer(ctx, cfg)
+	server, hub, jobService, authService, streamHandler, _, err := initializeServer(ctx, cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize server")
 	}
@@ -64,6 +65,21 @@ func main() {
 	jobService.Start(ctx)
 	log.Info().Msg("Job service started")
 
+	// Start auth service cleanup
+	authService.StartCleanup(ctx)
+	log.Info().Msg("Auth service cleanup started")
+
+	// Start upload session cleanup
+	streamHandler.StartCleanup(ctx)
+	log.Info().Msg("Upload session cleanup started")
+
+	// Ensure data directory exists for settings storage
+	if err := os.MkdirAll(config.DefaultDataDir, 0755); err != nil {
+		log.Warn().Err(err).Str("path", config.DefaultDataDir).Msg("Could not create data directory, settings may not persist")
+	} else {
+		log.Info().Str("path", config.DefaultDataDir).Msg("Data directory created/verified")
+	}
+
 	// Start HTTP server in background
 	go func() {
 		addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
@@ -74,11 +90,11 @@ func main() {
 	}()
 
 	// Wait for shutdown signal
-	waitForShutdown(ctx, cancel, server, jobService)
+	waitForShutdown(ctx, cancel, server, jobService, authService, streamHandler)
 }
 
 // initializeServer creates and configures all server components
-func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Server, *websocket.Hub, service.JobService, error) {
+func initializeServer(ctx context.Context, cfg *model.ServerConfig) (*http.Server, *websocket.Hub, service.JobService, service.AuthService, *handler.StreamHandler, *handler.SettingsHandler, error) {
 	// Create filesystem abstraction (using real OS filesystem)
 	fs := filesystem.NewOsFS()
 
@@ -110,6 +126,12 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 	hub := websocket.NewHub()
 
 	// Create services
+	// Use configured users, or default to admin:admin if none configured (homelab default)
+	users := cfg.Users
+	if len(users) == 0 {
+		log.Warn().Msg("No users configured, using default admin:admin credentials")
+		users = map[string]string{"admin": "admin"}
+	}
 	authService := service.NewAuthService(service.AuthServiceConfig{
 		JWTSecret: cfg.JWTSecret,
 		Users: map[string]string{
@@ -132,33 +154,39 @@ func initializeServer(ctx context.Context, cfg *config.ServerConfig) (*http.Serv
 
 	systemService := service.NewSystemService()
 
+	settingsService := service.NewSettingsService(fs, service.SettingsServiceConfig{
+		DataDir: config.DefaultDataDir,
+	})
+
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authService)
 	fileHandler := handler.NewFileHandler(fileService)
 	streamHandler := handler.NewStreamHandler(fileService, cfg.ChunkSizeMB)
 	jobHandler := handler.NewJobHandler(jobService)
 	searchHandler := handler.NewSearchHandler(searchService)
-	wsHandler := handler.NewWebSocketHandler(hub, authService)
+	wsHandler := handler.NewWebSocketHandler(hub, authService, cfg.AllowedOrigins)
 	systemHandler := handler.NewSystemHandler(systemService)
+	settingsHandler := handler.NewSettingsHandler(settingsService)
 
 	// Create router
-	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, systemHandler, mountPoints)
+	router := createRouter(cfg, authService, authHandler, fileHandler, streamHandler, jobHandler, searchHandler, wsHandler, systemHandler, settingsHandler, mountPoints)
 
+	// Create HTTP server
 	// Create HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  config.HTTPReadTimeout,
+		WriteTimeout: config.HTTPWriteTimeout,
+		IdleTimeout:  config.HTTPIdleTimeout,
 	}
 
-	return server, hub, jobService, nil
+	return server, hub, jobService, authService, streamHandler, settingsHandler, nil
 }
 
-// createRouter sets up the chi router with all routes and middleware
+// createRouter sets up chi router with all routes and middleware
 func createRouter(
-	cfg *config.ServerConfig,
+	cfg *model.ServerConfig,
 	authService service.AuthService,
 	authHandler *handler.AuthHandler,
 	fileHandler *handler.FileHandler,
@@ -167,6 +195,7 @@ func createRouter(
 	searchHandler *handler.SearchHandler,
 	wsHandler *handler.WebSocketHandler,
 	systemHandler *handler.SystemHandler,
+	settingsHandler *handler.SettingsHandler,
 	mountPoints []model.MountPoint,
 ) chi.Router {
 	r := chi.NewRouter()
@@ -194,7 +223,9 @@ func createRouter(
 			w.Write([]byte(`{"status":"ok"}`))
 		})
 		// Public routes (no auth required)
+		// Auth routes are rate-limited to prevent brute force attacks
 		r.Route("/auth", func(r chi.Router) {
+			r.Use(middleware.RateLimit(cfg.RateLimitRPS))
 			authHandler.RegisterRoutes(r)
 		})
 
@@ -228,17 +259,32 @@ func createRouter(
 			r.Route("/system", func(r chi.Router) {
 				systemHandler.RegisterRoutes(r)
 			})
+
+			// Settings operations
+			r.Route("/settings", func(r chi.Router) {
+				settingsHandler.RegisterRoutes(r)
+			})
 		})
 
 		// WebSocket endpoint (auth handled in handler)
 		r.Get("/ws", wsHandler.ServeWS)
 	})
 
+	// Static file handler for SPA frontend (catch-all)
+	// This must be after all API routes
+	staticHandler, err := static.NewHandler()
+	if err != nil {
+		log.Warn().Err(err).Msg("Static handler not available, frontend will not be served")
+	} else {
+		r.NotFound(staticHandler.ServeHTTP)
+		log.Info().Msg("Static file handler initialized for SPA frontend")
+	}
+
 	return r
 }
 
 // waitForShutdown handles graceful shutdown on interrupt signals
-func waitForShutdown(ctx context.Context, cancel context.CancelFunc, server *http.Server, jobService service.JobService) {
+func waitForShutdown(ctx context.Context, cancel context.CancelFunc, server *http.Server, jobService service.JobService, authService service.AuthService, streamHandler *handler.StreamHandler) {
 	// Create channel to receive OS signals
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
@@ -265,4 +311,8 @@ func waitForShutdown(ctx context.Context, cancel context.CancelFunc, server *htt
 	}
 
 	log.Info().Msg("Server shutdown complete")
+
+	// Stop background cleanups
+	authService.StopCleanup()
+	streamHandler.StopCleanup()
 }

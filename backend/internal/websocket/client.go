@@ -5,24 +5,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/homelab/filemanager/internal/config"
 )
 
-const (
-	// Time allowed to write a message to the peer
-	writeWait = 10 * time.Second
 
-	// Time allowed to read the next pong message from the peer
-	pongWait = 60 * time.Second
-
-	// Send pings to peer with this period (must be less than pongWait)
-	pingPeriod = (pongWait * 9) / 10
-
-	// Maximum message size allowed from peer
-	maxMessageSize = 512
-
-	// Size of the send channel buffer
-	sendBufferSize = 256
-)
 
 // Client represents a WebSocket client connection
 type Client struct {
@@ -43,7 +29,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID string) *Client {
 	return &Client{
 		hub:    hub,
 		conn:   conn,
-		send:   make(chan []byte, sendBufferSize),
+		send:   make(chan []byte, config.WSSendBufferSize),
 		userID: userID,
 	}
 }
@@ -56,10 +42,10 @@ func (c *Client) ReadPump() {
 		c.conn.Close()
 	}()
 
-	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetReadLimit(config.WSMaxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(config.WSPongWait))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		c.conn.SetReadDeadline(time.Now().Add(config.WSPongWait))
 		return nil
 	})
 
@@ -79,7 +65,7 @@ func (c *Client) ReadPump() {
 // WritePump pumps messages from the hub to the websocket connection
 // This runs in a separate goroutine for each client
 func (c *Client) WritePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(config.WSPingPeriod)
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
@@ -88,7 +74,7 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.conn.SetWriteDeadline(time.Now().Add(config.WSWriteWait))
 			if !ok {
 				// The hub closed the channel
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
@@ -112,7 +98,7 @@ func (c *Client) WritePump() {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.conn.SetWriteDeadline(time.Now().Add(config.WSWriteWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

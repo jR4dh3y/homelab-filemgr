@@ -154,26 +154,5 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": "Logged out successfully"}, http.StatusOK)
 }
 
-// ErrorResponse represents an error response
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Code    string `json:"code"`
-	Details string `json:"details,omitempty"`
-}
 
-// writeError writes an error response
-func writeError(w http.ResponseWriter, message, code string, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(ErrorResponse{
-		Error: message,
-		Code:  code,
-	})
-}
 
-// writeJSON writes a JSON response
-func writeJSON(w http.ResponseWriter, data interface{}, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}

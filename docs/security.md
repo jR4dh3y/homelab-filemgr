@@ -193,28 +193,54 @@ networks:
 
 ## Authentication Hardening
 
-### Default Credentials
+### Configurable Credentials ✅
 
-**Change default credentials immediately!**
+Credentials are now configurable via config file or environment variables.
 
-The default `admin/admin` is for initial setup only.
+**Via config.yaml:**
+```yaml
+users:
+  admin: "your-secure-password"
+  user2: "another-password"
+```
 
-To change credentials, modify the auth service configuration or implement a proper user management system.
+**Via environment variables:**
+```bash
+FM_USERS_admin=your-secure-password
+FM_USERS_user2=another-password
+```
+
+If no users are configured, the system falls back to `admin:admin` with a warning log.
 
 ### Session Management
 
-- Tokens expire after 1 hour (configurable)
-- Refresh tokens allow session continuity
+- Access tokens expire after 15 minutes (configurable)
+- Refresh tokens allow session continuity (7 days default)
 - Logout invalidates tokens
+- Revoked tokens are automatically cleaned up
 
-### Rate Limiting
+### Rate Limiting ✅
 
-Consider adding rate limiting for:
-- Login attempts
-- API requests
-- File uploads
+Rate limiting is now built-in for authentication endpoints:
 
-Example with nginx:
+**Configuration:**
+```yaml
+# config.yaml
+rate_limit_rps: 10  # requests per second per IP
+```
+
+**Via environment:**
+```bash
+FM_RATE_LIMIT_RPS=10
+```
+
+Features:
+- Per-IP rate limiting using token bucket algorithm
+- Supports proxy headers (X-Forwarded-For, X-Real-IP)
+- Returns HTTP 429 Too Many Requests when exceeded
+- Memory-efficient with automatic cleanup
+
+You can also add additional rate limiting via nginx:
 
 ```nginx
 limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;

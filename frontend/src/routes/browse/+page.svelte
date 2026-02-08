@@ -10,10 +10,14 @@
 	import StatusBar from '$lib/components/StatusBar.svelte';
 	import SystemDriveCard from '$lib/components/SystemDriveCard.svelte';
 	import FilePreview from '$lib/components/FilePreview.svelte';
+	import UploadPanel from '$lib/components/UploadPanel.svelte';
+	import Toast from '$lib/components/ui/Toast.svelte';
 	import { Spinner, Modal, Input, Button } from '$lib/components/ui';
 	import { pathStore, currentPath, pathSegments, listOptionsStore, fileQueryKeys } from '$lib/stores/files';
 	import { settingsStore } from '$lib/stores/settings';
 	import { clipboardStore } from '$lib/stores/clipboard.svelte';
+	import { uploadStore } from '$lib/stores/upload.svelte';
+	import { toastStore } from '$lib/stores/toast.svelte';
 	import { listRoots, listDirectory, search, rename, deleteFile, getDownloadUrl } from '$lib/api/files';
 	import { getSystemDrives, type SystemDrivesResponse, type SystemDrive } from '$lib/api/system';
 	import { CONFIG } from '$lib/config';
@@ -31,6 +35,10 @@
 	let previewFile = $state<FileInfo | null>(null);
 	let historyStack = $state<string[]>(['']);
 	let historyIndex = $state(0);
+
+	// Upload state
+	let fileInputEl: HTMLInputElement;
+	let isDragOver = $state(false);
 
 	// Rename dialog state
 	let renameDialog = $state<{ open: boolean; file: FileInfo | null; newName: string }>({
@@ -321,6 +329,111 @@
 			console.error('Delete failed:', error);
 		}
 	}
+
+	// Setup upload store callbacks
+	uploadStore.onComplete = (fileName: string, success: boolean, error?: string) => {
+		if (success) {
+			toastStore.success(`${fileName} uploaded successfully`);
+		} else {
+			toastStore.error(`Upload failed: ${error || 'Unknown error'}`);
+		}
+	};
+
+	uploadStore.onRefreshNeeded = () => {
+		directoryQuery.refetch();
+	};
+
+	/**
+	 * Handle upload button click - open file picker
+	 */
+	function handleUploadClick() {
+		fileInputEl?.click();
+	}
+
+	/**
+	 * Handle files selected from file picker
+	 */
+	function handleFileInputChange(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const files = input.files;
+		if (files && files.length > 0) {
+			startUploads(Array.from(files));
+		}
+		// Reset input so the same file can be selected again
+		input.value = '';
+	}
+
+	/**
+	 * Handle drag over event
+	 */
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		if (!isAtRoot) {
+			isDragOver = true;
+		}
+	}
+
+	/**
+	 * Handle drag leave event
+	 */
+	function handleDragLeave(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragOver = false;
+	}
+
+	/**
+	 * Handle drop event
+	 */
+	function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		isDragOver = false;
+
+		if (isAtRoot) {
+			toastStore.warning('Navigate to a folder first to upload files');
+			return;
+		}
+
+		// Check if current mount is read-only
+		const currentMount = roots.find((r) => path.startsWith(r.name));
+		if (currentMount?.readOnly) {
+			toastStore.error('Cannot upload to read-only location');
+			return;
+		}
+
+		const files = event.dataTransfer?.files;
+		if (files && files.length > 0) {
+			startUploads(Array.from(files));
+		}
+	}
+
+	/**
+	 * Start uploading files
+	 */
+	function startUploads(files: File[]) {
+		if (!path) {
+			toastStore.warning('Navigate to a folder first to upload files');
+			return;
+		}
+
+		// Check if current mount is read-only
+		const currentMount = roots.find((r) => path.startsWith(r.name));
+		if (currentMount?.readOnly) {
+			toastStore.error('Cannot upload to read-only location');
+			return;
+		}
+
+		uploadStore.addFiles(files, path);
+	}
+
+	// Derived: is upload disabled (at root or read-only)
+	const uploadDisabled = $derived.by(() => {
+		if (isAtRoot) return true;
+		const currentMount = roots.find((r) => path.startsWith(r.name));
+		return currentMount?.readOnly ?? false;
+	});
 </script>
 
 <svelte:head>
@@ -345,10 +458,28 @@
 			onNavigate={handleNavigate}
 			onRefresh={handleRefresh}
 			onSettings={handleSettings}
+			onUpload={handleUploadClick}
+			{uploadDisabled}
 		/>
 
 		<!-- File list or Drive cards -->
-		<div class="flex-1 overflow-auto">
+		<div
+			class="flex-1 overflow-auto relative"
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+			role="region"
+			aria-label="File browser content"
+		>
+			<!-- Drag-drop overlay -->
+			{#if isDragOver && !isAtRoot}
+				<div class="absolute inset-0 bg-accent/10 border-2 border-dashed border-accent z-20 flex items-center justify-center pointer-events-none">
+					<div class="bg-surface-primary/90 backdrop-blur-sm px-6 py-4 rounded-lg shadow-lg">
+						<span class="text-accent text-lg font-medium">Drop files to upload here</span>
+					</div>
+				</div>
+			{/if}
+
 			{#if isAtRoot}
 				<!-- This Server view - show drive cards -->
 				<div class="p-6">
@@ -425,29 +556,21 @@
 	{/snippet}
 </Modal>
 
-<!-- Delete Confirmation Dialog -->
-<Modal
-	open={deleteDialog.open}
-	title="Delete"
-	onclose={() => (deleteDialog = { open: false, items: [] })}
->
-	<div class="flex flex-col gap-2">
-		<p class="text-text-primary">
-			Are you sure you want to delete {deleteDialog.items.length === 1
-				? `"${deleteDialog.items[0]?.name}"`
-				: `${deleteDialog.items.length} items`}?
-		</p>
-		<p class="text-text-secondary text-sm">This action cannot be undone.</p>
-	</div>
-	{#snippet footer()}
-		<Button variant="secondary" onclick={() => (deleteDialog = { open: false, items: [] })}>
-			Cancel
-		</Button>
-		<Button variant="danger" onclick={handleDeleteConfirm}>
-			Delete
-		</Button>
-	{/snippet}
-</Modal>
+<!-- Hidden file input for upload button -->
+<input
+	bind:this={fileInputEl}
+	type="file"
+	multiple
+	class="hidden"
+	onchange={handleFileInputChange}
+/>
+
+<!-- Upload Panel (floating bottom-right) -->
+<UploadPanel />
+
+<!-- Toast notifications -->
+<Toast />
+
 
 <!-- Properties Dialog -->
 <Modal

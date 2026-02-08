@@ -61,6 +61,30 @@ mount_points:
 | `max_upload_mb` | int | 10240 | Maximum upload size in MB |
 | `chunk_size_mb` | int | 5 | Chunk size for uploads in MB |
 
+### Security Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `users` | map[string]string | (optional) | Username to password mapping |
+| `rate_limit_rps` | float | 10.0 | Auth endpoint rate limit (requests per second per IP) |
+| `allowed_origins` | string[] | [] | WebSocket/CORS allowed origins (empty = allow all) |
+
+**Example security configuration:**
+
+```yaml
+# config.yaml
+users:
+  admin: "secure-password-here"
+  user2: "another-password"
+
+rate_limit_rps: 10
+
+allowed_origins:
+  - "http://localhost:3000"
+  - "https://myapp.example.com"
+  - "*.internal.lan"  # Wildcard subdomain support
+```
+
 ### Mount Points
 
 Each mount point has:
@@ -70,15 +94,30 @@ Each mount point has:
 | `name` | string | Yes | Display name and URL path prefix |
 | `path` | string | Yes | Absolute filesystem path |
 | `read_only` | bool | No | If true, write operations are blocked |
+| `auto_discover` | bool | No | If true, auto-discover subdirectory mount points |
 
 ## Environment Variables
 
-Environment variables override config file values:
+Environment variables override config file values. All variables use the `FM_` prefix:
 
 | Variable | Config Key | Description |
 |----------|------------|-------------|
-| `JWT_SECRET` | jwt_secret | JWT signing secret |
+| `FM_JWT_SECRET` | jwt_secret | JWT signing secret |
+| `FM_PORT` | port | HTTP server port |
+| `FM_HOST` | host | Bind address |
+| `FM_RATE_LIMIT_RPS` | rate_limit_rps | Rate limit for auth endpoints |
+| `FM_ALLOWED_ORIGINS` | allowed_origins | Comma-separated allowed origins |
+| `FM_USERS_<username>` | users.<username> | User password (e.g., `FM_USERS_admin=password`) |
 | `CONFIG_PATH` | - | Path to config file |
+
+**Example environment setup:**
+
+```bash
+export FM_JWT_SECRET="your-secure-random-string"
+export FM_USERS_admin="secure-password"
+export FM_RATE_LIMIT_RPS="10"
+export FM_ALLOWED_ORIGINS="http://localhost:3000,https://myapp.example.com"
+```
 
 ## Mount Point Configuration
 

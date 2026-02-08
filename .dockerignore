@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Documentation
+*.md
+docs/
+!README.md
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Frontend build artifacts (built in container)
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build
+
+# Backend build artifacts (built in container)
+backend/server
+backend/*.exe
+backend/*.test
+backend/coverage.*
+
+# Test files
+*_test.go
+*.test.ts
+*.spec.ts
+
+# Temp files
+tmp/
+temp/
+*.log
+
+# Old Docker files (will be deleted)
+nginx/
+docker-compose.prod.yml
+frontend/Dockerfile
+backend/Dockerfile
+frontend/.dockerignore
+backend/.dockerignore

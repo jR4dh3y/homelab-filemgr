@@ -34,9 +34,11 @@
 
 <div class="min-h-screen flex items-center justify-center p-4 bg-surface-primary">
 	<div class="w-full max-w-[400px] bg-surface-secondary border border-border-primary rounded-lg p-8">
-		<div class="text-center mb-8">
-			<span class="block mb-2 text-accent"><FolderOpen size={48} /></span>
-			<h1 class="text-2xl font-semibold text-text-primary m-0 mb-2">File Manager</h1>
+		<div class="flex flex-col items-center mb-8">
+			<div class="flex items-center gap-3 mb-2">
+				<span class="text-accent"><FolderOpen size={32} /></span>
+				<h1 class="text-2xl font-semibold text-text-primary m-0">File Manager</h1>
+			</div>
 			<p class="text-sm text-text-secondary m-0">Sign in to access your files</p>
 		</div>
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/homelab/filemanager/internal/config"
 )
 
 // Auth-related errors
@@ -45,6 +46,8 @@ type AuthService interface {
 	Refresh(ctx context.Context, refreshToken string) (*TokenPair, error)
 	ValidateToken(tokenString string) (*Claims, error)
 	Logout(ctx context.Context, refreshToken string) error
+	StartCleanup(ctx context.Context)
+	StopCleanup()
 }
 
 
@@ -56,6 +59,8 @@ type authService struct {
 	users              map[string]string // username -> password (in production, use proper storage)
 	revokedTokens      map[string]time.Time
 	mu                 sync.RWMutex
+	stopCh             chan struct{}
+	wg                 sync.WaitGroup
 }
 
 // AuthServiceConfig holds configuration for the auth service
@@ -84,6 +89,7 @@ func NewAuthService(cfg AuthServiceConfig) AuthService {
 		refreshTokenExpiry: cfg.RefreshTokenExpiry,
 		users:              cfg.Users,
 		revokedTokens:      make(map[string]time.Time),
+		stopCh:             make(chan struct{}),
 	}
 }
 
@@ -228,4 +234,31 @@ func (s *authService) CleanupExpiredTokens() {
 			delete(s.revokedTokens, token)
 		}
 	}
+}
+
+// StartCleanup starts the periodic cleanup of expired tokens
+func (s *authService) StartCleanup(ctx context.Context) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		ticker := time.NewTicker(config.TokenCleanupInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-s.stopCh:
+				return
+			case <-ticker.C:
+				s.CleanupExpiredTokens()
+			}
+		}
+	}()
+}
+
+// StopCleanup stops the cleanup goroutine
+func (s *authService) StopCleanup() {
+	close(s.stopCh)
+	s.wg.Wait()
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/homelab/filemanager/internal/model"
 	"github.com/homelab/filemanager/internal/service"
 )
 
@@ -29,7 +30,7 @@ func (h *SystemHandler) RegisterRoutes(r chi.Router) {
 func (h *SystemHandler) GetDrives(w http.ResponseWriter, r *http.Request) {
 	drives, err := h.systemService.GetAllDrives(r.Context())
 	if err != nil {
-		writeError(w, "Failed to get system drives", "INTERNAL_ERROR", http.StatusInternalServerError)
+		writeError(w, "Failed to get system drives", model.ErrCodeInternalError, http.StatusInternalServerError)
 		return
 	}
 

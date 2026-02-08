@@ -21,8 +21,22 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		// Enable XSS filter in browsers
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 
-		// Content Security Policy
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
+		// Content Security Policy - permissive for Monaco editor and SPA frontend
+		// - 'unsafe-eval': Required by Monaco editor for syntax highlighting
+		// - 'unsafe-inline': Required for SvelteKit bootstrapping and Tailwind/Monaco inline styles
+		// - blob: Required for Monaco web workers
+		// - data: Required for fonts and embedded images
+		// - ws:/wss: Required for WebSocket connections
+		csp := strings.Join([]string{
+			"default-src 'self'",
+			"script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https://static.cloudflareinsights.com",
+			"style-src 'self' 'unsafe-inline'",
+			"font-src 'self' data:",
+			"img-src 'self' data: blob:",
+			"worker-src 'self' blob:",
+			"connect-src 'self' ws: wss:",
+		}, "; ")
+		w.Header().Set("Content-Security-Policy", csp)
 
 		// Referrer Policy
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -30,7 +44,6 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
 
 // MountPointGuard creates a middleware that validates paths against configured mount points
 // and enforces read-only restrictions

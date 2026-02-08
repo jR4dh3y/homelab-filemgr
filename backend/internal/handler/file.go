@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,7 +76,7 @@ func (h *FileHandler) ListRoots(w http.ResponseWriter, r *http.Request) {
 func (h *FileHandler) GetDriveStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.fileService.GetDriveStats(r.Context())
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -99,7 +98,7 @@ func (h *FileHandler) GetPath(w http.ResponseWriter, r *http.Request) {
 	// Check if this is a directory or file
 	info, err := h.fileService.GetInfo(r.Context(), path)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -107,7 +106,7 @@ func (h *FileHandler) GetPath(w http.ResponseWriter, r *http.Request) {
 		// Return directory listing
 		list, err := h.fileService.List(r.Context(), path, opts)
 		if err != nil {
-			h.handleServiceError(w, err)
+			HandleServiceError(w, err)
 			return
 		}
 		writeJSON(w, list, http.StatusOK)
@@ -150,14 +149,14 @@ func (h *FileHandler) CreateDir(w http.ResponseWriter, r *http.Request) {
 
 	// Create directory
 	if err := h.fileService.CreateDir(r.Context(), fullPath); err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
 	// Return the created directory info
 	info, err := h.fileService.GetInfo(r.Context(), fullPath)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -188,14 +187,14 @@ func (h *FileHandler) Rename(w http.ResponseWriter, r *http.Request) {
 
 	// Perform rename
 	if err := h.fileService.Rename(r.Context(), oldPath, req.NewPath); err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
 	// Return the renamed file/directory info
 	info, err := h.fileService.GetInfo(r.Context(), req.NewPath)
 	if err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -217,7 +216,7 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		// Check if path exists and get info
 		info, err := h.fileService.GetInfo(r.Context(), path)
 		if err != nil {
-			h.handleServiceError(w, err)
+			HandleServiceError(w, err)
 			return
 		}
 
@@ -230,7 +229,7 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Perform delete
 	if err := h.fileService.Delete(r.Context(), path); err != nil {
-		h.handleServiceError(w, err)
+		HandleServiceError(w, err)
 		return
 	}
 
@@ -276,22 +275,4 @@ func (h *FileHandler) parseListOptions(r *http.Request) model.ListOptions {
 	return opts
 }
 
-// handleServiceError converts service errors to HTTP responses
-func (h *FileHandler) handleServiceError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, service.ErrPathNotFound):
-		writeError(w, "Path not found", model.ErrCodeNotFound, http.StatusNotFound)
-	case errors.Is(err, service.ErrPathExists):
-		writeError(w, "Path already exists", model.ErrCodeConflict, http.StatusConflict)
-	case errors.Is(err, service.ErrNotDirectory):
-		writeError(w, "Path is not a directory", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrNotFile):
-		writeError(w, "Path is not a file", model.ErrCodeValidationError, http.StatusBadRequest)
-	case errors.Is(err, service.ErrPermissionDenied):
-		writeError(w, "Permission denied", model.ErrCodePermissionDenied, http.StatusForbidden)
-	case errors.Is(err, service.ErrMountPointNotFound):
-		writeError(w, "Mount point not found or access denied", model.ErrCodeAccessDenied, http.StatusForbidden)
-	default:
-		writeError(w, "Internal server error", model.ErrCodeInternalError, http.StatusInternalServerError)
-	}
-}
+

@@ -65,6 +65,14 @@ func (s *testAuthService) ValidateToken(tokenString string) (*service.Claims, er
 	return claims, nil
 }
 
+func (s *testAuthService) StartCleanup(ctx context.Context) {
+	// No-op for testing
+}
+
+func (s *testAuthService) StopCleanup() {
+	// No-op for testing
+}
+
 // generateValidToken creates a valid JWT token for testing
 func generateValidToken(secret string, username string, expiry time.Duration) string {
 	claims := &service.Claims{

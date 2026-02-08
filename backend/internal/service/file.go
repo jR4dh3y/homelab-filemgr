@@ -6,12 +6,12 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"mime"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/homelab/filemanager/internal/model"
+	"github.com/homelab/filemanager/internal/pkg/fileutil"
 	"github.com/homelab/filemanager/internal/pkg/filesystem"
 	"github.com/homelab/filemanager/internal/pkg/validator"
 )
@@ -212,7 +212,7 @@ func (s *fileService) List(ctx context.Context, path string, opts model.ListOpti
 		if err != nil {
 			continue
 		}
-		items = append(items, s.toFileInfo(entry.Name(), filepath.Join(path, entry.Name()), entryInfo))
+		items = append(items, fileutil.ToFileInfo(entry.Name(), filepath.Join(path, entry.Name()), entryInfo))
 	}
 
 	return &model.FileList{
@@ -244,7 +244,7 @@ func (s *fileService) GetInfo(ctx context.Context, path string) (*model.FileInfo
 		return nil, err
 	}
 
-	fileInfo := s.toFileInfo(info.Name(), path, info)
+	fileInfo := fileutil.ToFileInfo(info.Name(), path, info)
 	return &fileInfo, nil
 }
 
@@ -389,7 +389,7 @@ func (s *fileService) OpenFile(ctx context.Context, path string) (File, *model.F
 		return nil, nil, err
 	}
 
-	fileInfo := s.toFileInfo(info.Name(), path, info)
+	fileInfo := fileutil.ToFileInfo(info.Name(), path, info)
 	return file, &fileInfo, nil
 }
 
@@ -475,27 +475,4 @@ func (s *fileService) sortEntries(entries []fs.DirEntry, sortBy, sortDir string)
 	})
 }
 
-// toFileInfo converts fs.FileInfo to model.FileInfo
-func (s *fileService) toFileInfo(name, path string, info fs.FileInfo) model.FileInfo {
-	fileInfo := model.FileInfo{
-		Name:        name,
-		Path:        path,
-		Size:        info.Size(),
-		IsDir:       info.IsDir(),
-		ModTime:     info.ModTime(),
-		Permissions: info.Mode().String(),
-	}
 
-	// Set MIME type for files
-	if !info.IsDir() {
-		ext := filepath.Ext(name)
-		if ext != "" {
-			mimeType := mime.TypeByExtension(ext)
-			if mimeType != "" {
-				fileInfo.MimeType = mimeType
-			}
-		}
-	}
-
-	return fileInfo
-}
