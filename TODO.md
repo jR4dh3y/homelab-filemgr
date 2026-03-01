@@ -100,3 +100,62 @@ All tasks from `backend/REFACTOR_PLAN.md` are complete:
 - Architecture issues → Centralized constants, error handling, response helpers
 - Resource management → Added cleanup for auth tokens, upload sessions, job history
 - Security issues → Configurable credentials, rate limiting, WebSocket origins
+
+---
+
+## Integration Drift Audit (2026-03-01)
+
+Context: A backend/frontend linkage audit was done after stream/upload fixes were shipped.  
+Goal: catch places where backend features exist but frontend behavior is missing, stale, or not wired correctly.
+
+### High Priority
+
+- [ ] **Upload ID mismatch between store and uploader**
+  - Context: `uploadStore` generates `uploadId`, but `uploadFile()` generates a different one internally.
+  - Impact: progress tracking/resume wiring can drift and become unreliable.
+  - References:
+    - `frontend/src/lib/stores/upload.svelte.ts` (queue/progress lifecycle)
+    - `frontend/src/lib/utils/upload.ts` (`uploadFile()` internal `generateUploadId()`)
+  - Fix direction: pass `uploadId` from store into uploader and remove duplicate ID generation.
+
+- [ ] **Resumable upload feature exists but is not integrated in UI flow**
+  - Context: `resumeUpload()` and `/stream/upload/status` are implemented, but normal upload path only calls `uploadFile()`.
+  - Impact: interrupted uploads restart instead of resuming.
+  - References:
+    - `frontend/src/lib/utils/upload.ts` (`resumeUpload`, `getUploadStatus`)
+    - `frontend/src/lib/stores/upload.svelte.ts` (only `uploadFile()` used)
+  - Fix direction: detect prior upload session and route through `resumeUpload()` when available.
+
+- [ ] **WebSocket backend capability not fully consumed by frontend**
+  - Context: backend can batch multiple JSON messages in one WS frame (newline-delimited), frontend assumes one JSON object per frame.
+  - Impact: dropped/parse-failed real-time updates under burst conditions.
+  - References:
+    - `backend/internal/websocket/client.go` (`WritePump` writes newline-delimited messages)
+    - `frontend/src/lib/stores/websocket.ts` (`JSON.parse(event.data)` single parse path)
+  - Fix direction: split incoming payload by newline and parse each JSON message safely.
+
+- [ ] **WebSocket store not actively wired into page lifecycle**
+  - Context: connection helpers exist in `websocketStore`, but app-level usage of `connect()`/subscriptions is not clearly wired from routes.
+  - Impact: real-time job updates may silently rely on polling only.
+  - References:
+    - `frontend/src/lib/stores/websocket.ts`
+    - route/layout integration points
+  - Fix direction: connect/disconnect in authenticated app lifecycle and subscribe job IDs when jobs are active.
+
+### Medium Priority
+
+- [ ] **Streaming API docs are stale vs actual response contract**
+  - Context: docs still describe old upload response shape (`received`, `size`, `checksum`) while handler returns `receivedChunks`, `totalChunks`, `complete`, `path`.
+  - Impact: client implementers use wrong schema.
+  - References:
+    - `docs/api.md` (stream upload section)
+    - `backend/internal/handler/stream.go` (`UploadResponse`)
+  - Fix direction: update docs to current endpoint behavior and response payloads.
+
+- [ ] **Stream property tests use non-production route prefix**
+  - Context: tests exercise `/api/v1/upload/*`, while production mounts stream routes under `/api/v1/stream/*`.
+  - Impact: route-level regressions can slip through tests.
+  - References:
+    - `backend/internal/handler/stream_property_test.go`
+    - `backend/cmd/server/main.go` route mounting
+  - Fix direction: align test request paths with production route prefix.
