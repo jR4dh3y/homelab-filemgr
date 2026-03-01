@@ -17,6 +17,7 @@
 		items = [],
 		sortBy = 'name',
 		sortDir = 'asc',
+		emptyMessage = 'This folder is empty',
 		selectedPaths = new SvelteSet<string>(),
 		isLoading = false,
 		compactMode = false,
@@ -30,6 +31,7 @@
 		items?: FileInfo[];
 		sortBy?: SortField;
 		sortDir?: SortDir;
+		emptyMessage?: string;
 		selectedPaths?: Set<string>;
 		isLoading?: boolean;
 		compactMode?: boolean;
@@ -194,7 +196,7 @@
 					<td colspan="4" class="py-12 px-3">
 						<div class="flex flex-col items-center gap-2 text-text-muted">
 							<FolderOpen size={32} class="opacity-50" />
-							<span class="text-[13px]">This folder is empty</span>
+							<span class="text-[13px]">{emptyMessage}</span>
 						</div>
 					</td>
 				</tr>

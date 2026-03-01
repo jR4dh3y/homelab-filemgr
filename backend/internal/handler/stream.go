@@ -37,7 +37,7 @@ func NewStreamHandler(fileService service.FileService, chunkSizeMB int) *StreamH
 	}
 	return &StreamHandler{
 		fileService:   fileService,
-		uploadManager: NewUploadManager(),
+		uploadManager: NewUploadManager(config.DefaultUploadTempDir),
 		chunkSizeMB:   chunkSizeMB,
 	}
 }
@@ -61,7 +61,7 @@ func (h *StreamHandler) StopCleanup() {
 }
 
 // Download handles file download requests with Range header support
-// GET /api/v1/download/*path
+// GET /api/v1/stream/download/*path
 func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
@@ -78,27 +78,19 @@ func (h *StreamHandler) Download(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	// Detect MIME type using centralized utility
-	mimeType := fileutil.DetectMimeType(info.Name)
+	mimeType := detectStreamMimeType(file, info.Name)
 
 	// Set response headers
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name))
 	w.Header().Set("Accept-Ranges", "bytes")
 
-	// Use http.ServeContent for Range header support
-	// This handles partial content (206) responses automatically
-	// We need to cast to io.ReadSeeker for ServeContent
-	if rs, ok := file.(io.ReadSeeker); ok {
-		http.ServeContent(w, r, info.Name, info.ModTime, rs)
-	} else {
-		// Fallback: copy the entire file if seeking is not supported
-		w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
-		io.Copy(w, file)
-	}
+	// Use http.ServeContent for efficient range-based streaming
+	http.ServeContent(w, r, info.Name, info.ModTime, file)
 }
 
 // Preview handles file preview requests (inline viewing) with Range header support
-// GET /api/v1/preview/*path
+// GET /api/v1/stream/preview/*path
 func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
@@ -114,8 +106,8 @@ func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Detect MIME type using centralized utility
-	mimeType := fileutil.DetectMimeType(info.Name)
+	// Detect MIME type using extension + content sniffing fallback
+	mimeType := detectStreamMimeType(file, info.Name)
 
 	// Set response headers for inline viewing
 	w.Header().Set("Content-Type", mimeType)
@@ -127,42 +119,44 @@ func (h *StreamHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Range")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
 
-	// Use http.ServeContent for Range header support
-	if rs, ok := file.(io.ReadSeeker); ok {
-		http.ServeContent(w, r, info.Name, info.ModTime, rs)
-	} else {
-		w.Header().Set("Content-Length", strconv.FormatInt(info.Size, 10))
-		io.Copy(w, file)
-	}
-}
+	// Avoid response transformation by intermediate proxies/CDNs.
+	w.Header().Set("Cache-Control", "no-transform")
 
+	// Use http.ServeContent for efficient range-based streaming
+	http.ServeContent(w, r, info.Name, info.ModTime, file)
+}
 
 // UploadSession tracks the state of a chunked upload
 type UploadSession struct {
-	ID           string    `json:"id"`
-	Path         string    `json:"path"`
-	TotalChunks  int       `json:"totalChunks"`
-	ChunkSize    int64     `json:"chunkSize"`
-	TotalSize    int64     `json:"totalSize"`
+	ID             string       `json:"id"`
+	Path           string       `json:"path"`
+	TotalChunks    int          `json:"totalChunks"`
+	ChunkSize      int64        `json:"chunkSize"`
+	TotalSize      int64        `json:"totalSize"`
 	ReceivedChunks map[int]bool `json:"-"`
-	TempDir      string    `json:"-"`
-	CreatedAt    time.Time `json:"createdAt"`
-	LastActivity time.Time `json:"lastActivity"`
-	mu           sync.RWMutex
+	TempDir        string       `json:"-"`
+	CreatedAt      time.Time    `json:"createdAt"`
+	LastActivity   time.Time    `json:"lastActivity"`
+	mu             sync.RWMutex
 }
 
 // UploadManager manages active upload sessions
 type UploadManager struct {
 	sessions map[string]*UploadSession
+	tempRoot string
 	mu       sync.RWMutex
 	stopCh   chan struct{}
 	wg       sync.WaitGroup
 }
 
 // NewUploadManager creates a new upload manager
-func NewUploadManager() *UploadManager {
+func NewUploadManager(tempRoot string) *UploadManager {
+	if tempRoot == "" {
+		tempRoot = os.TempDir()
+	}
 	return &UploadManager{
 		sessions: make(map[string]*UploadSession),
+		tempRoot: tempRoot,
 		stopCh:   make(chan struct{}),
 	}
 }
@@ -202,7 +196,7 @@ func (m *UploadManager) cleanupExpiredSessions() {
 	now := time.Now()
 	for id, session := range m.sessions {
 		if now.Sub(session.LastActivity) > config.SessionTimeout {
-			os.RemoveAll(session.TempDir)
+			_ = os.RemoveAll(session.TempDir)
 			delete(m.sessions, id)
 		}
 	}
@@ -213,8 +207,11 @@ func (m *UploadManager) CreateSession(id, path string, totalChunks int, chunkSiz
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Create temp directory for chunks
-	tempDir, err := os.MkdirTemp("", "upload-"+id+"-")
+	// Ensure upload temp root exists and create a per-upload temp directory.
+	if err := os.MkdirAll(m.tempRoot, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to ensure upload temp root: %w", err)
+	}
+	tempDir, err := os.MkdirTemp(m.tempRoot, "upload-"+id+"-")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -249,7 +246,7 @@ func (m *UploadManager) DeleteSession(id string) {
 	defer m.mu.Unlock()
 
 	if session, ok := m.sessions[id]; ok {
-		os.RemoveAll(session.TempDir)
+		_ = os.RemoveAll(session.TempDir)
 		delete(m.sessions, id)
 	}
 }
@@ -287,7 +284,7 @@ func (s *UploadSession) GetReceivedCount() int {
 func (s *UploadSession) GetMissingChunks() []int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	missing := make([]int, 0)
 	for i := 0; i < s.TotalChunks; i++ {
 		if !s.ReceivedChunks[i] {
@@ -296,7 +293,6 @@ func (s *UploadSession) GetMissingChunks() []int {
 	}
 	return missing
 }
-
 
 // UploadRequest represents the headers for a chunk upload
 type UploadRequest struct {
@@ -331,14 +327,15 @@ type UploadStatusResponse struct {
 }
 
 // Upload handles chunked file uploads
-// POST /api/v1/upload/*path
+// POST /api/v1/stream/upload/*path
 // Headers:
-//   X-Upload-ID: unique upload identifier
-//   X-Chunk-Index: current chunk index (0-based)
-//   X-Total-Chunks: total number of chunks
-//   X-Chunk-Size: size of each chunk in bytes
-//   X-Total-Size: total file size in bytes
-//   X-Checksum: SHA256 checksum (only on final chunk)
+//
+//	X-Upload-ID: unique upload identifier
+//	X-Chunk-Index: current chunk index (0-based)
+//	X-Total-Chunks: total number of chunks
+//	X-Chunk-Size: size of each chunk in bytes
+//	X-Total-Size: total file size in bytes
+//	X-Checksum: SHA256 checksum (only on final chunk)
 func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
 	if path == "" {
@@ -395,7 +392,7 @@ func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// Save chunk to temp file
 	chunkPath := filepath.Join(session.TempDir, fmt.Sprintf("chunk_%d", uploadReq.ChunkIndex))
-	chunkFile, err := os.Create(chunkPath)
+	chunkFile, err := os.OpenFile(chunkPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		writeError(w, "Failed to create chunk file", model.ErrCodeInternalError, http.StatusInternalServerError)
 		return
@@ -404,7 +401,7 @@ func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(chunkFile, r.Body)
 	chunkFile.Close()
 	if err != nil {
-		os.Remove(chunkPath)
+		_ = os.Remove(chunkPath)
 		writeError(w, "Failed to write chunk", model.ErrCodeInternalError, http.StatusInternalServerError)
 		return
 	}
@@ -448,7 +445,6 @@ func (h *StreamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		Complete:       false,
 	}, http.StatusOK)
 }
-
 
 // parseUploadHeaders parses and validates upload request headers
 func (h *StreamHandler) parseUploadHeaders(r *http.Request) (*UploadRequest, error) {
@@ -521,16 +517,24 @@ func (h *StreamHandler) assembleChunks(session *UploadSession, destPath string, 
 		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
-	// Create destination file using filesystem abstraction
-	destFile, err := fs.Create(destPath)
+	// Write into a temporary file in the destination directory, then rename atomically.
+	tempDestPath := destPath + ".uploading." + session.ID
+	destFile, err := fs.OpenFile(tempDestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer destFile.Close()
+	cleanupTemp := true
+	defer func() {
+		_ = destFile.Close()
+		if cleanupTemp {
+			_ = fs.Remove(tempDestPath)
+		}
+	}()
 
 	// Create hasher for checksum verification
 	hasher := sha256.New()
 	writer := io.MultiWriter(destFile, hasher)
+	copyBuf := make([]byte, config.FileCopyBufferSize)
 
 	// Assemble chunks in order
 	for i := 0; i < session.TotalChunks; i++ {
@@ -540,7 +544,7 @@ func (h *StreamHandler) assembleChunks(session *UploadSession, destPath string, 
 			return fmt.Errorf("failed to open chunk %d: %w", i, err)
 		}
 
-		_, err = io.Copy(writer, chunkFile)
+		_, err = io.CopyBuffer(writer, chunkFile, copyBuf)
 		chunkFile.Close()
 		if err != nil {
 			return fmt.Errorf("failed to copy chunk %d: %w", i, err)
@@ -553,17 +557,45 @@ func (h *StreamHandler) assembleChunks(session *UploadSession, destPath string, 
 		// Handle both with and without "sha256:" prefix
 		expected := strings.TrimPrefix(expectedChecksum, "sha256:")
 		if actualChecksum != expected {
-			// Remove the incomplete file
-			fs.Remove(destPath)
 			return fmt.Errorf("checksum mismatch: expected %s, got %s", expected, actualChecksum)
 		}
 	}
 
+	if err := destFile.Close(); err != nil {
+		return fmt.Errorf("failed to finalize destination file: %w", err)
+	}
+	if err := fs.Rename(tempDestPath, destPath); err != nil {
+		return fmt.Errorf("failed to finalize uploaded file: %w", err)
+	}
+	cleanupTemp = false
+
 	return nil
 }
 
+func detectStreamMimeType(file io.ReadSeeker, filename string) string {
+	if mimeType := fileutil.DetectMimeType(filename); mimeType != "application/octet-stream" {
+		return mimeType
+	}
+
+	buf := make([]byte, 512)
+	n, readErr := file.Read(buf)
+	if _, seekErr := file.Seek(0, io.SeekStart); seekErr != nil {
+		return "application/octet-stream"
+	}
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		return "application/octet-stream"
+	}
+	if n > 0 {
+		if detected := http.DetectContentType(buf[:n]); detected != "" {
+			return detected
+		}
+	}
+
+	return "application/octet-stream"
+}
+
 // UploadStatus returns the status of an upload session
-// GET /api/v1/upload/status/*path
+// GET /api/v1/stream/upload/status/*path
 func (h *StreamHandler) UploadStatus(w http.ResponseWriter, r *http.Request) {
 	uploadID := r.URL.Query().Get("uploadId")
 	if uploadID == "" {

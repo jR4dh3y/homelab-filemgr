@@ -69,8 +69,11 @@ COPY --from=backend-builder /server /app/server
 # Copy default config
 COPY backend/config.yaml /app/config.yaml
 
-# Create data directory for settings persistence
-RUN mkdir -p /app/data
+# Create writable runtime directories
+RUN mkdir -p /data /tmp/filemanager && chmod 1777 /tmp /tmp/filemanager
+
+# Store upload chunk temp files on a dedicated writable path
+ENV TMPDIR=/tmp/filemanager
 
 # Expose the server port (port 80 for Traefik compatibility)
 EXPOSE 80

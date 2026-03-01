@@ -9,7 +9,7 @@ import { getAccessToken } from '$lib/api/client';
 const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
 
 // API base URL
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = '/api/v1/stream';
 
 /**
  * Upload progress callback

@@ -12,7 +12,8 @@ const (
 	HTTPReadTimeout = 30 * time.Second
 
 	// HTTPWriteTimeout is the maximum duration before timing out writes of the response
-	HTTPWriteTimeout = 30 * time.Second
+	// Set to 0 to allow long-lived media streams and large uploads/downloads.
+	HTTPWriteTimeout = 0 * time.Second
 
 	// HTTPIdleTimeout is the maximum amount of time to wait for the next request
 	HTTPIdleTimeout = 120 * time.Second
@@ -85,6 +86,9 @@ const (
 
 	// SessionCleanupInterval is how often to run session cleanup
 	SessionCleanupInterval = 1 * time.Hour
+
+	// DefaultUploadTempDir is where chunk files are stored before final assembly
+	DefaultUploadTempDir = "/tmp/filemanager"
 )
 
 // ============================================================================
@@ -147,27 +151,27 @@ var VirtualFilesystems = map[string]bool{
 // Also includes /host_root equivalents for when running in Docker
 var ExcludedMountPointPrefixes = []string{
 	// Container-internal mounts
-	"/etc/",                      // Docker bind mounts like /etc/hosts, /etc/resolv.conf, /etc/hostname
-	"/app/",                      // Application config bind mounts
-	"/proc/",                     // Process filesystem
-	"/sys/",                      // System filesystem
-	"/dev/",                      // Device filesystem
-	"/run/",                      // Runtime data
-	"/var/lib/docker",            // Docker internal paths
-	"/snap/",                     // Snap packages
-	"/boot/",                     // Boot partition
+	"/etc/",           // Docker bind mounts like /etc/hosts, /etc/resolv.conf, /etc/hostname
+	"/app/",           // Application config bind mounts
+	"/proc/",          // Process filesystem
+	"/sys/",           // System filesystem
+	"/dev/",           // Device filesystem
+	"/run/",           // Runtime data
+	"/var/lib/docker", // Docker internal paths
+	"/snap/",          // Snap packages
+	"/boot/",          // Boot partition
 	// Host paths via /host_root bind mount - exclude duplicates and system paths
-	"/host_root/etc/",            // Host's etc directory
-	"/host_root/proc/",           // Host's proc
-	"/host_root/sys/",            // Host's sys
-	"/host_root/dev/",            // Host's dev
-	"/host_root/run/",            // Host's run
-	"/host_root/var/lib/docker",  // Host's docker
-	"/host_root/snap/",           // Host's snap packages
-	"/host_root/boot/",           // Host's boot partition
+	"/host_root/etc/",           // Host's etc directory
+	"/host_root/proc/",          // Host's proc
+	"/host_root/sys/",           // Host's sys
+	"/host_root/dev/",           // Host's dev
+	"/host_root/run/",           // Host's run
+	"/host_root/var/lib/docker", // Host's docker
+	"/host_root/snap/",          // Host's snap packages
+	"/host_root/boot/",          // Host's boot partition
 	// These are duplicates - already accessible via direct mounts
-	"/host_root/media/",          // Already accessible via /media/devmon mount
-	"/host_root/home/",           // Already accessible via /home/user mount
+	"/host_root/media/", // Already accessible via /media/devmon mount
+	"/host_root/home/",  // Already accessible via /home/user mount
 }
 
 // ExcludedMountPointSuffixes contains mount point path suffixes that should be filtered out

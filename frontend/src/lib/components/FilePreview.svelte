@@ -2,7 +2,7 @@
 	/**
 	 * FilePreview - Modal component for previewing files
 	 */
-	import { X, Download, Maximize2, Minimize2 } from 'lucide-svelte';
+	import { X, Download, Maximize2, Minimize2, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import type { FileInfo } from '$lib/api/files';
 	import { getPreviewUrl, getDownloadUrl } from '$lib/api/files';
 	import { getPreviewType, type PreviewType } from '$lib/utils/fileTypes';
@@ -16,16 +16,37 @@
 
 	interface Props {
 		file: FileInfo | null;
+		allFiles?: FileInfo[];
+		onNavigate?: (file: FileInfo) => void;
 		onClose: () => void;
 	}
 
-	let { file, onClose }: Props = $props();
+	let { file, allFiles = [], onNavigate, onClose }: Props = $props();
 
 	let isFullscreen = $state(false);
 
 	const previewType = $derived<PreviewType>(file ? getPreviewType(file.name) : 'unsupported');
 	const previewUrl = $derived(file ? getPreviewUrl(file.path) : '');
 	const downloadUrl = $derived(file ? getDownloadUrl(file.path) : '');
+	const currentIndex = $derived(file ? allFiles.findIndex((item) => item.path === file.path) : -1);
+	const hasPrevious = $derived(currentIndex > 0);
+	const hasNext = $derived(currentIndex >= 0 && currentIndex < allFiles.length - 1);
+
+	function isInteractiveTarget(target: EventTarget | null): boolean {
+		const element = target instanceof HTMLElement ? target : null;
+		if (!element) return false;
+		return !!element.closest('input, textarea, select, button, [contenteditable="true"], audio, video');
+	}
+
+	function navigatePrevious() {
+		if (!hasPrevious) return;
+		onNavigate?.(allFiles[currentIndex - 1]);
+	}
+
+	function navigateNext() {
+		if (!hasNext) return;
+		onNavigate?.(allFiles[currentIndex + 1]);
+	}
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
@@ -34,6 +55,22 @@
 			} else {
 				onClose();
 			}
+			return;
+		}
+
+		if (isInteractiveTarget(event.target)) {
+			return;
+		}
+
+		if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			navigatePrevious();
+			return;
+		}
+
+		if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			navigateNext();
 		}
 	}
 
@@ -54,7 +91,7 @@
 	}
 
 	const headerBtnClass =
-		'w-8 h-8 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary';
+		'w-8 h-8 flex items-center justify-center bg-transparent border-none rounded text-text-secondary cursor-pointer transition-all duration-100 hover:bg-surface-elevated hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-secondary';
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -84,6 +121,12 @@
 					<span class="text-xs text-text-secondary shrink-0">{formatFileSize(file.size)}</span>
 				</div>
 				<div class="flex items-center gap-1">
+					<button type="button" class={headerBtnClass} onclick={navigatePrevious} disabled={!hasPrevious} title="Previous file">
+						<ChevronLeft size={18} />
+					</button>
+					<button type="button" class={headerBtnClass} onclick={navigateNext} disabled={!hasNext} title="Next file">
+						<ChevronRight size={18} />
+					</button>
 					<button type="button" class={headerBtnClass} onclick={handleDownload} title="Download">
 						<Download size={18} />
 					</button>
@@ -108,7 +151,7 @@
 			<!-- Content -->
 			<main class="flex-1 overflow-auto flex items-center justify-center">
 				{#if previewType === 'video'}
-					<VideoPreview url={previewUrl} filename={file.name} />
+					<VideoPreview url={previewUrl} filename={file.name} downloadUrl={downloadUrl} />
 				{:else if previewType === 'audio'}
 					<AudioPreview url={previewUrl} filename={file.name} />
 				{:else if previewType === 'image'}

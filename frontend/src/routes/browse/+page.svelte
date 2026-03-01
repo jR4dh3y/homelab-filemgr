@@ -6,6 +6,7 @@
 	import { goto } from '$app/navigation';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Toolbar from '$lib/components/Toolbar.svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
 	import FileList from '$lib/components/FileList.svelte';
 	import StatusBar from '$lib/components/StatusBar.svelte';
 	import SystemDriveCard from '$lib/components/SystemDriveCard.svelte';
@@ -63,6 +64,8 @@
 	const segments = $derived($pathSegments);
 	const options = $derived($listOptionsStore);
 	const settings = $derived($settingsStore);
+	const trimmedSearchQuery = $derived(searchQuery.trim());
+	const isSearchActive = $derived(trimmedSearchQuery.length >= 2);
 
 	const rootsQuery = createQuery<RootsResponse>(() => ({
 		queryKey: fileQueryKeys.roots(),
@@ -82,12 +85,13 @@
 	}));
 
 	const searchQueryResult = createQuery<SearchResponse>(() => ({
-		queryKey: fileQueryKeys.search(path, searchQuery),
-		queryFn: () => search(path, searchQuery),
-		enabled: searchQuery.length >= 2,
+		queryKey: fileQueryKeys.search(path, trimmedSearchQuery),
+		queryFn: () => search(path, trimmedSearchQuery),
+		enabled: path !== '' && isSearchActive,
 	}));
 
 	const isLoading = $derived(directoryQuery.isLoading);
+	const isFileListLoading = $derived(isSearchActive ? searchQueryResult.isFetching : isLoading);
 	const fileList = $derived(directoryQuery.data ?? null);
 	const searchResults = $derived(searchQueryResult.data?.results ?? []);
 	const roots = $derived(rootsQuery.data?.roots ?? []);
@@ -106,7 +110,7 @@
 	const displayItems = $derived.by(() => {
 		let items: FileInfo[];
 
-		if (searchQuery && searchResults.length > 0) {
+		if (isSearchActive) {
 			items = searchResults;
 		} else {
 			items = fileList?.items ?? [];
@@ -117,6 +121,13 @@
 		}
 
 		return items;
+	});
+	const previewableFiles = $derived(displayItems.filter((item) => !item.isDir));
+	const emptyListMessage = $derived.by(() => {
+		if (isSearchActive) {
+			return `No matches for "${trimmedSearchQuery}" in this folder`;
+		}
+		return 'This folder is empty';
 	});
 
 	const itemCount = $derived(isAtRoot ? systemDrives.length : displayItems.length);
@@ -181,6 +192,18 @@
 
 	function handleClosePreview() {
 		previewFile = null;
+	}
+
+	function handlePreviewNavigate(file: FileInfo) {
+		previewFile = file;
+	}
+
+	function handleSearchInput(query: string) {
+		searchQuery = query;
+	}
+
+	function handleSearchClear() {
+		searchQuery = '';
 	}
 
 	function handleSortChange(field: SortField, dir: SortDir) {
@@ -462,6 +485,18 @@
 			{uploadDisabled}
 		/>
 
+		{#if !isAtRoot}
+			<div class="border-b border-border-secondary bg-surface-primary px-3 py-2">
+				<SearchBar
+					value={searchQuery}
+					onInput={handleSearchInput}
+					onClear={handleSearchClear}
+					isLoading={isSearchActive && searchQueryResult.isFetching}
+					placeholder="Search files and folders..."
+				/>
+			</div>
+		{/if}
+
 		<!-- File list or Drive cards -->
 		<div
 			class="flex-1 overflow-auto relative"
@@ -511,8 +546,9 @@
 					items={displayItems}
 					sortBy={options.sortBy}
 					sortDir={options.sortDir}
+					emptyMessage={emptyListMessage}
 					{selectedPaths}
-					{isLoading}
+					isLoading={isFileListLoading}
 					compactMode={settings.compactMode}
 					{cutPaths}
 					{canPaste}
@@ -530,7 +566,7 @@
 </div>
 
 <!-- File Preview Modal -->
-<FilePreview file={previewFile} onClose={handleClosePreview} />
+<FilePreview file={previewFile} allFiles={previewableFiles} onNavigate={handlePreviewNavigate} onClose={handleClosePreview} />
 
 <!-- Rename Dialog -->
 <Modal

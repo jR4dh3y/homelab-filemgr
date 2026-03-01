@@ -28,6 +28,7 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - CONFIG_PATH=/app/config.yaml
+      - TMPDIR=/tmp/filemanager
     volumes:
       # Configuration
       - ./backend/config.yaml:/app/config.yaml:ro
@@ -40,7 +41,7 @@ services:
 
       # Persistent storage
       - filemanager-temp:/tmp/filemanager
-      - filemanager-data:/app/data
+      - filemanager-data:/data
 
     # Security: Run without full privileges, only necessary capabilities
     privileged: false

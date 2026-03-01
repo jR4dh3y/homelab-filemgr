@@ -9,6 +9,7 @@
 		value?: string;
 		placeholder?: string;
 		isLoading?: boolean;
+		disabled?: boolean;
 		onSearch?: (query: string) => void;
 		onInput?: (query: string) => void;
 		onClear?: () => void;
@@ -18,6 +19,7 @@
 		value = '',
 		placeholder = 'Search files...',
 		isLoading = false,
+		disabled = false,
 		onSearch,
 		onInput,
 		onClear,
@@ -74,7 +76,7 @@
 			value={inputValue}
 			oninput={handleInput}
 			onkeydown={handleKeydown}
-			disabled={isLoading}
+			disabled={disabled}
 			class="block w-full rounded-lg border border-border-primary bg-surface-secondary py-2 pr-10 pl-10 text-sm text-text-primary placeholder-text-muted focus:border-border-focus focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 			aria-label="Search"
 		/>
